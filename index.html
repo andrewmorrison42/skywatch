@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#131B27">
+<title>Skywatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#131B27;          /* deep dusk background */
+    --horizon:#1D2938;      /* card surface */
+    --ridge:#2A3A4E;        /* borders / raised */
+    --cloud:#E9EEF5;        /* primary text */
+    --mist:#8FA0B5;         /* muted text */
+    --sun:#EFC368;          /* accent — action, warmth */
+    --storm:#7A93B8;        /* chips, secondary */
+    --ok:#8FC9A8;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--sky);color-scheme:dark}
+  html,body{height:100%}
+  body{
+    background:var(--sky);color:var(--cloud);
+    font-family:'Public Sans',system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.5;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overscroll-behavior:none;
+  }
+  #app{background:var(--sky);min-height:100dvh}
+  .screen{display:none;max-width:520px;margin:0 auto;padding:20px 18px 96px;min-height:100dvh}
+  .screen.active{display:block}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:.2px}
+  h1{font-size:1.7rem}
+  h2{font-size:1.25rem}
+  .eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;color:#B9C6D8;margin-bottom:4px;font-weight:600}
+  .sub{color:#AAB9CC;font-size:.92rem}
+  .stamp{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;color:#AAB9CC}
+
+  /* buttons */
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  .btn{
+    display:block;width:100%;text-align:center;padding:15px;border-radius:var(--radius);
+    background:var(--sun);color:#26200F;font-weight:600;font-size:1rem;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:var(--horizon);color:var(--cloud);border:1px solid var(--ridge)}
+  .btn.quiet{background:none;color:var(--mist);font-weight:500;font-size:.9rem;padding:10px}
+  .row{display:flex;gap:10px}
+  .row .btn{flex:1}
+
+  /* home */
+  header.app{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .entry-card{
+    background:var(--horizon);border:1px solid var(--ridge);border-radius:var(--radius);
+    padding:14px 16px;margin-top:12px;width:100%;text-align:left;display:block;
+  }
+  .entry-card .sit{font-weight:600;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .entry-card .chips{margin-top:6px}
+  .empty{
+    margin-top:48px;text-align:center;color:var(--mist);
+  }
+  .empty .glyph{font-family:'Fraunces',serif;font-size:2.4rem;color:var(--storm)}
+  .toolbar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--sky) 34%);padding:24px 18px calc(16px + env(safe-area-inset-bottom))}
+  .toolbar .inner{max-width:520px;margin:0 auto}
+
+  /* breathe */
+  #breathe{display:none;align-items:center;justify-content:center;text-align:center;padding-bottom:20px}
+  #breathe.active{display:flex}
+  .breathe-wrap{width:100%}
+  .skyfield{
+    position:relative;width:min(74vw,300px);height:min(74vw,300px);margin:26px auto;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .orb{
+    position:absolute;inset:0;border-radius:50%;
+    background:radial-gradient(circle at 50% 42%, #F6D794 0%, #EFC368 26%, rgba(239,195,104,.16) 62%, transparent 74%);
+    transform:scale(.55);transition:transform 4s ease-in-out;
+    filter:blur(.3px);
+  }
+  .orb.in{transform:scale(1)}
+  .orb.hold{transition-duration:1.2s}
+  .ring{position:absolute;inset:6%;border-radius:50%;border:1px solid var(--ridge)}
+  .breath-word{position:relative;font-family:'Fraunces',serif;font-size:1.3rem;color:#26200F;font-weight:600}
+  .breath-count{margin-top:4px;color:var(--mist);font-size:.9rem}
+  .anchor-line{margin-top:22px;font-family:'Fraunces',serif;font-size:1.1rem;color:var(--cloud)}
+  @media (prefers-reduced-motion:reduce){
+    .orb{transition:none}
+  }
+
+  /* form */
+  .field{margin-top:20px}
+  label.f{display:block;font-weight:600;font-size:1rem;margin-bottom:2px;color:#F4F7FB}
+  label.f small{display:block;font-weight:400;color:#A9B8CB;font-size:.85rem;margin-bottom:7px}
+
+  /* afterglow — quote after saving */
+  #afterglow{display:none;align-items:center;justify-content:center;text-align:center}
+  #afterglow.active{display:flex}
+  .glow-wrap{width:100%;padding:10px}
+  .glow-orb{
+    width:120px;height:120px;margin:0 auto 26px;border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, #F6D794 0%, #EFC368 34%, rgba(239,195,104,.14) 68%, transparent 78%);
+  }
+  .quote{font-family:'Fraunces',Georgia,serif;font-size:1.45rem;line-height:1.4;color:#F4F7FB;font-weight:400}
+  .quote-by{margin-top:14px;color:#AAB9CC;font-size:.9rem;text-transform:uppercase;letter-spacing:.12em}
+  textarea,input[type=text]{
+    width:100%;background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;
+    color:var(--cloud);font:inherit;padding:12px 13px;min-height:52px;resize:vertical;
+    caret-color:var(--sun);
+  }
+  ::selection{background:var(--sun);color:#26200F}
+  textarea:focus,input:focus{outline:2px solid var(--sun);outline-offset:1px;border-color:transparent}
+  textarea.tall{min-height:84px}
+
+  /* chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    padding:7px 12px;border-radius:999px;border:1px solid var(--ridge);
+    background:var(--horizon);color:var(--cloud);font-size:.85rem;font-weight:500;
+  }
+  .chip.on{background:var(--storm);border-color:var(--storm);color:#0F1621}
+  /* pattern picker: 2-col grid, name + info joined in one unit */
+  .chip-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .chip-unit{
+    display:flex;align-items:stretch;border:1px solid var(--ridge);border-radius:12px;
+    background:var(--horizon);overflow:hidden;min-height:46px;
+  }
+  .chip-unit .pick{
+    flex:1;text-align:left;padding:8px 4px 8px 12px;font-size:.83rem;font-weight:500;
+    color:var(--cloud);line-height:1.25;display:flex;align-items:center;
+  }
+  .chip-unit .info{
+    width:38px;display:flex;align-items:center;justify-content:center;
+    color:var(--mist);border-left:1px solid var(--ridge);font-size:.95rem;flex-shrink:0;
+  }
+  .chip-unit.on{background:var(--storm);border-color:var(--storm)}
+  .chip-unit.on .pick{color:#0F1621;font-weight:600}
+  .chip-unit.on .info{color:#0F1621;border-left-color:rgba(15,22,33,.25)}
+  .chip.mini{padding:3px 9px;font-size:.72rem;color:var(--mist);background:none}
+  .chip-info{margin-top:10px;background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;padding:12px 14px;font-size:.9rem;display:none}
+  .chip-info.show{display:block}
+  .chip-info b{font-family:'Fraunces',serif}
+  .chip-info .q{color:var(--sun);margin-top:6px;font-style:italic}
+
+  /* reference */
+  .pattern{background:var(--horizon);border:1px solid var(--ridge);border-radius:var(--radius);padding:14px 16px;margin-top:12px}
+  .pattern h3{font-size:1.02rem}
+  .pattern p{font-size:.9rem;color:var(--mist);margin-top:4px}
+  .pattern .q{font-size:.9rem;color:var(--sun);font-style:italic;margin-top:6px}
+
+  /* detail */
+  .detail-block{margin-top:18px}
+  .detail-block .eyebrow{margin-bottom:2px}
+  .detail-block p{white-space:pre-wrap}
+  .danger{color:#E08A8A}
+
+  .backlink{display:inline-block;color:var(--mist);font-size:.9rem;padding:6px 0;margin-bottom:8px}
+  .toast{
+    position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    background:var(--cloud);color:#131B27;padding:9px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
+    opacity:0;pointer-events:none;transition:opacity .25s;z-index:50;
+  }
+  .toast.show{opacity:1}
+  .note{margin-top:14px;font-size:.8rem;color:var(--mist)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ============ HOME ============ -->
+<section class="screen active" id="home">
+  <header class="app">
+    <div>
+      <div class="eyebrow">Skywatch</div>
+      <h1>Weather reports</h1>
+    </div>
+    <button class="quiet btn" style="width:auto" onclick="show('reference')">Patterns</button>
+  </header>
+  <p class="sub">You're the sky. These are the weather.</p>
+
+  <div id="entryList"></div>
+
+  <div id="emptyState" class="empty">
+    <div class="glyph">☁</div>
+    <p>No reports yet.<br>When a thought hooks you, log the weather.</p>
+  </div>
+
+  <div style="margin-top:26px" id="exportRow"></div>
+
+  <div class="toolbar"><div class="inner">
+    <button class="btn" onclick="startBreathe()">New report</button>
+  </div></div>
+</section>
+
+<!-- ============ BREATHE ============ -->
+<section class="screen" id="breathe">
+  <div class="breathe-wrap">
+    <div class="eyebrow">Before you write</div>
+    <h2>Five slow breaths</h2>
+    <div class="skyfield">
+      <div class="ring"></div>
+      <div class="orb" id="orb"></div>
+      <div>
+        <div class="breath-word" id="breathWord">Breathe in</div>
+      </div>
+    </div>
+    <div class="breath-count" id="breathCount">Breath 1 of 5</div>
+    <p class="anchor-line">Look at the sky.<br>Don't get pulled into the weather.</p>
+    <button class="btn quiet" id="skipBtn" style="margin-top:18px;visibility:hidden" onclick="show('entry')">Skip to writing</button>
+  </div>
+</section>
+
+<!-- ============ ENTRY FORM ============ -->
+<section class="screen" id="entry">
+  <button class="backlink" onclick="confirmLeave()">← Back</button>
+  <div class="eyebrow" id="entryStamp"></div>
+  <h2>Log the weather</h2>
+
+  <div class="field">
+    <label class="f" for="fSituation">Situation<small>What, where, who. Just the observable event.</small></label>
+    <textarea id="fSituation"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fThoughts">The thoughts<small>What the mind is saying. Write it verbatim — don't tidy it up.</small></label>
+    <textarea id="fThoughts" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fFeeling">The weather in the body<small>How it feels — emotion, sensation, urge.</small></label>
+    <textarea id="fFeeling"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f">Name the story<small>Which weather patterns are these thoughts riding in on? Tap to select; tap again to deselect. Tap ⓘ for the pattern.</small></label>
+    <div class="chip-grid" id="chipRow"></div>
+    <div class="chip-info" id="chipInfo"></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fFacts">The facts<small>Only what's undisputable. Evidence, not opinion. Head, not heart.</small></label>
+    <textarea id="fFacts"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fControl">In my control<small>What can I actually do? Direct energy only here.</small></label>
+    <textarea id="fControl" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fFriend">To a friend<small>If a mate at work described this exact situation, what would I say to them?</small></label>
+    <textarea id="fFriend"></textarea>
+  </div>
+
+  <div style="margin-top:28px" class="row">
+    <button class="btn" onclick="saveEntry()">Save report</button>
+  </div>
+</section>
+
+<!-- ============ DETAIL ============ -->
+<section class="screen" id="detail">
+  <button class="backlink" onclick="show('home')">← All reports</button>
+  <div id="detailBody"></div>
+  <div style="margin-top:30px">
+    <button class="btn quiet danger" onclick="deleteCurrent()">Delete this report</button>
+  </div>
+</section>
+
+<!-- ============ REFERENCE ============ -->
+<section class="screen" id="reference">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Field guide</div>
+  <h2>Weather patterns</h2>
+  <p class="sub">Unhelpful thinking habits. Noticing the pattern is most of the work — it turns "I am hopeless" into "there's the hopeless story again."</p>
+  <div id="patternList"></div>
+  <p class="note">Adapted from Carol Vivyan's Unhelpful Thinking Habits (getselfhelp.co.uk), used for personal therapy purposes.</p>
+</section>
+
+<!-- ============ AFTERGLOW ============ -->
+<section class="screen" id="afterglow">
+  <div class="glow-wrap">
+    <div class="glow-orb"></div>
+    <div class="eyebrow">Report filed. Weather noted.</div>
+    <p class="quote" id="quoteText"></p>
+    <div class="quote-by" id="quoteBy"></div>
+    <button class="btn" style="margin-top:34px" onclick="show('home')">Done</button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importJSON(this)">
+</div>
+
+<script>
+/* ---------- distortion data (paraphrased from the worksheet) ---------- */
+const PATTERNS = [
+  {id:"mental-filter", name:"Mental filter",
+   desc:"Only noticing what fits the gloomy filter; anything positive or neutral gets strained out.",
+   q:"Am I only catching the bad stuff? What would a fuller picture include?"},
+  {id:"judgement", name:"Judgements",
+   desc:"Evaluating events, self, or others instead of describing what was actually observed.",
+   q:"Is this a description or an evaluation? Is there another perspective?"},
+  {id:"prediction", name:"Prediction",
+   desc:"Believing I know what's going to happen.",
+   q:"Am I fortune-telling? How likely is that outcome, really?"},
+  {id:"emotional-reasoning", name:"Emotional reasoning",
+   desc:"I feel bad, so it must be bad; I feel anxious, so I must be in danger.",
+   q:"Feeling bad doesn't make it bad. What do the facts say?"},
+  {id:"mind-reading", name:"Mind-reading",
+   desc:"Assuming I know what others are thinking — usually about me.",
+   q:"What's the evidence? Those are my thoughts, not theirs."},
+  {id:"mountains", name:"Mountains & molehills",
+   desc:"Exaggerating risk or negatives; minimising the most likely outcome or the positives.",
+   q:"How would someone else see this? What's the bigger picture?"},
+  {id:"compare", name:"Compare & despair",
+   desc:"Seeing only the good in others and ranking myself below it.",
+   q:"What would a balanced comparison actually look like?"},
+  {id:"catastrophising", name:"Catastrophising",
+   desc:"Imagining and believing the worst possible outcome will happen.",
+   q:"What's most likely to happen — not worst-case, most likely?"},
+  {id:"critical-self", name:"Critical self",
+   desc:"The internal bully — blaming myself for things that aren't wholly my responsibility.",
+   q:"Would people who know me say this? Am I totally responsible for this?"},
+  {id:"black-white", name:"Black & white",
+   desc:"Only good or bad, right or wrong — no shades of grey.",
+   q:"Where does this sit on the spectrum, not at the poles?"},
+  {id:"shoulds", name:"Shoulds & musts",
+   desc:"'I should / I must' — pressure and near-impossible expectations.",
+   q:"What would a realistic expectation be?"},
+  {id:"memories", name:"Memories",
+   desc:"A present event triggers an old memory, so the danger feels here-and-now.",
+   q:"That was then; this is now. Is it actually happening again right now?"},
+];
+
+/* ---------- quotes shown after saving a report ---------- */
+const QUOTES = [
+  {t:"It's not stress that kills us, it is our reaction to it.", by:"Hans Selye"},
+  {t:"The greatest weapon against stress is our ability to choose one thought over another.", by:"William James"},
+  {t:"Tension is a habit. Relaxing is a habit. Bad habits can be broken, good habits formed.", by:"William James"},
+  {t:"If you are distressed by anything external, the pain is not due to the thing itself, but to your estimate of it.", by:"Marcus Aurelius"},
+  {t:"We should always be asking ourselves: is this something that is, or is not, in my control?", by:"Epictetus"},
+  {t:"When a situation is within your control, take action. When it is outside your control, make preparations.", by:"James Clear"},
+  {t:"The anxiety of worry is almost always worse than the actual consequences.", by:"James Clear"},
+  {t:"You cannot always control what goes on outside. But you can always control what goes on inside.", by:"Wayne Dyer"},
+  {t:"Stress is caused by being 'here' but wanting to be 'there'.", by:"Eckhart Tolle"},
+  {t:"Make peace with the present moment.", by:"Eckhart Tolle"},
+  {t:"Feelings come and go like clouds in a windy sky. Conscious breathing is my anchor.", by:"Thich Nhat Hanh"},
+  {t:"Awareness is inherently pure like the empty sky. Stress can occupy its space, but never pollute it.", by:"Haemin Sunim"},
+  {t:"Almost everything will work again if you unplug it for a few minutes, including you.", by:"Anne Lamott"},
+  {t:"Stress is an ignorant state. It believes that everything is an emergency.", by:"Natalie Goldberg"},
+  {t:"There is more to life than increasing its speed.", by:"Mahatma Gandhi"},
+  {t:"Within you there is a stillness and a sanctuary to which you can retreat at any time.", by:"Hermann Hesse"},
+  {t:"Flow with whatever happens and let your mind be free.", by:"Zhuangzi"},
+  {t:"Life is a series of natural and spontaneous changes. Don't resist them.", by:"Lao Tzu"},
+  {t:"This too shall pass.", by:"Proverb"},
+  {t:"For fast-acting relief, try slowing down.", by:"Lily Tomlin"},
+  {t:"In the middle of difficulty lies opportunity.", by:"Albert Einstein"},
+  {t:"Every kind of fear grows worse by not being looked at.", by:"Bertrand Russell"},
+  {t:"You cannot control what happens to you, but you can always control what you will feel and do about it.", by:"Viktor Frankl"},
+  {t:"When we stop opposing reality, action becomes simple, fluid, kind, and fearless.", by:"Byron Katie"},
+  {t:"Stress is an inability to decide what's important.", by:"Naval Ravikant"},
+  {t:"You don't stress about things you don't care about. Stress and meaning are linked.", by:"Kelly McGonigal"},
+  {t:"You are far from the only nervous person in the room.", by:"Thibaut"},
+  {t:"You're okay. It's just a thought. Breathe.", by:"Jason Garner"},
+  {t:"Our anxiety does not come from thinking about the future, but from wanting to control it.", by:"Kahlil Gibran"},
+  {t:"In times of stress, the best thing we can do for each other is to listen.", by:"Fred Rogers"},
+  {t:"90% of what you're stressing about right now won't even matter a year from now.", by:"Mel Robbins"},
+  {t:"The goal is not a stress-free life. It's a life where stress doesn't bother you.", by:"Maxime Lagacé"},
+];
+let lastQuote = -1;
+function pickQuote(){
+  let i;
+  do { i = Math.floor(Math.random()*QUOTES.length); } while (i === lastQuote && QUOTES.length > 1);
+  lastQuote = i;
+  return QUOTES[i];
+}
+
+/* ---------- storage adapter: window.storage → localStorage → memory ---------- */
+const KEY = "skywatch-entries";
+let memStore = null;
+const store = {
+  mode: "memory",
+  localOK(){
+    try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }
+    catch(e){ return false; }
+  },
+  async init(){
+    if (typeof window.storage?.set === "function"){
+      try {
+        const r = await window.storage.set("__skywatch_probe","1");
+        if (r && r.key === "__skywatch_probe"){
+          try { await window.storage.delete("__skywatch_probe"); } catch(e){}
+          this.mode = "claude"; return;
+        }
+      } catch(e){ console.warn("Artifact storage unavailable:", e); }
+    }
+    this.mode = this.localOK() ? "local" : "memory";
+  },
+  async load(){
+    try{
+      if (this.mode === "claude"){
+        try{ const r = await window.storage.get(KEY); return r ? JSON.parse(r.value) : []; }
+        catch(e){ /* key may not exist yet */ }
+      }
+      if (this.mode === "local" || this.mode === "claude"){
+        const v = this.localOK() ? localStorage.getItem(KEY) : null;
+        if (v) return JSON.parse(v);
+      }
+      return memStore || [];
+    }catch(e){ console.error(e); return memStore || []; }
+  },
+  async save(entries){
+    memStore = entries;
+    const json = JSON.stringify(entries);
+    if (this.mode === "claude"){
+      try { await window.storage.set(KEY, json); return; }
+      catch(e){
+        console.warn("Artifact storage write failed, falling back:", e);
+        this.mode = this.localOK() ? "local" : "memory";
+      }
+    }
+    if (this.mode === "local"){
+      try { localStorage.setItem(KEY, json); return; }
+      catch(e){ console.error(e); this.mode = "memory"; }
+    }
+    if (this.mode === "memory"){
+      toast("Saved for this session only — export to keep");
+    }
+  }
+};
+
+/* ---------- state ---------- */
+let entries = [];
+let selectedPatterns = new Set();
+let currentId = null;
+let breatheTimer = null;
+
+/* ---------- nav ---------- */
+function show(id){
+  clearBreathe();
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+  if (id === "home") renderHome();
+}
+
+/* ---------- breathe gate ---------- */
+function startBreathe(){
+  resetForm();
+  document.getElementById("entryStamp").textContent = fmt(new Date());
+  show("breathe");
+  runBreaths();
+}
+function runBreaths(){
+  const orb = document.getElementById("orb");
+  const word = document.getElementById("breathWord");
+  const count = document.getElementById("breathCount");
+  const skip = document.getElementById("skipBtn");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let breath = 1;
+  const IN = reduced ? 4000 : 4000, OUT = reduced ? 6000 : 6000;
+
+  function cycle(){
+    if (breath > 5){ show("entry"); return; }
+    count.textContent = `Breath ${breath} of 5`;
+    word.textContent = "Breathe in";
+    orb.classList.add("in");
+    breatheTimer = setTimeout(()=>{
+      word.textContent = "Exhale — let it drift";
+      orb.classList.remove("in");
+      breatheTimer = setTimeout(()=>{
+        breath++;
+        if (breath === 2) skip.style.visibility = "visible";
+        cycle();
+      }, OUT);
+    }, IN);
+  }
+  skip.style.visibility = "hidden";
+  cycle();
+}
+function clearBreathe(){
+  if (breatheTimer){ clearTimeout(breatheTimer); breatheTimer = null; }
+  document.getElementById("orb").classList.remove("in");
+}
+
+/* ---------- entry form ---------- */
+function resetForm(){
+  ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend"].forEach(i=>document.getElementById(i).value="");
+  selectedPatterns = new Set();
+  renderChips();
+  document.getElementById("chipInfo").classList.remove("show");
+}
+function renderChips(){
+  const row = document.getElementById("chipRow");
+  row.innerHTML = "";
+  PATTERNS.forEach(p=>{
+    const unit = document.createElement("div");
+    unit.className = "chip-unit" + (selectedPatterns.has(p.id) ? " on" : "");
+
+    const pick = document.createElement("button");
+    pick.className = "pick";
+    pick.textContent = p.name;
+    pick.setAttribute("aria-pressed", selectedPatterns.has(p.id));
+    pick.onclick = ()=>{
+      selectedPatterns.has(p.id) ? selectedPatterns.delete(p.id) : selectedPatterns.add(p.id);
+      renderChips();
+    };
+
+    const info = document.createElement("button");
+    info.className = "info";
+    info.setAttribute("aria-label", `About ${p.name}`);
+    info.textContent = "ⓘ";
+    info.onclick = ()=>showChipInfo(p);
+
+    unit.appendChild(pick); unit.appendChild(info);
+    row.appendChild(unit);
+  });
+}
+function showChipInfo(p){
+  const el = document.getElementById("chipInfo");
+  el.innerHTML = `<b>${p.name}.</b> ${p.desc}<div class="q">${p.q}</div>`;
+  el.classList.add("show");
+}
+function confirmLeave(){
+  const dirty = ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend"]
+    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size;
+  if (!dirty || confirm("Discard this report?")) show("home");
+}
+async function saveEntry(){
+  const get = i => document.getElementById(i).value.trim();
+  if (!get("fThoughts") && !get("fSituation")){ toast("Write something first"); return; }
+  const e = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    situation: get("fSituation"),
+    thoughts: get("fThoughts"),
+    feeling: get("fFeeling"),
+    patterns: [...selectedPatterns],
+    facts: get("fFacts"),
+    control: get("fControl"),
+    friend: get("fFriend"),
+  };
+  entries.unshift(e);
+  await store.save(entries);
+  const q = pickQuote();
+  document.getElementById("quoteText").textContent = "\u201C" + q.t + "\u201D";
+  document.getElementById("quoteBy").textContent = q.by;
+  show("afterglow");
+}
+
+/* ---------- home ---------- */
+function fmt(d){
+  d = new Date(d);
+  return d.toLocaleString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false});
+}
+function pname(id){ const p = PATTERNS.find(x=>x.id===id); return p ? p.name : id; }
+function renderHome(){
+  const list = document.getElementById("entryList");
+  const empty = document.getElementById("emptyState");
+  const exportRow = document.getElementById("exportRow");
+  list.innerHTML = "";
+  empty.style.display = entries.length ? "none" : "block";
+  exportRow.innerHTML = "";
+  entries.forEach(e=>{
+    const b = document.createElement("button");
+    b.className = "entry-card";
+    b.onclick = ()=>openDetail(e.id);
+    b.innerHTML = `
+      <div class="stamp">${fmt(e.ts)}</div>
+      <div class="sit">${esc(e.situation || e.thoughts)}</div>
+      <div class="chips">${e.patterns.map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div>`;
+    list.appendChild(b);
+  });
+  if (entries.length){
+    exportRow.innerHTML = `
+      <div class="eyebrow" style="margin-bottom:8px">Export / backup</div>
+      <div class="row">
+        <button class="btn ghost" onclick="exportCSV()">CSV</button>
+        <button class="btn ghost" onclick="exportJSON()">JSON</button>
+        <button class="btn ghost" onclick="shareText()">Share</button>
+      </div>
+      <button class="btn quiet" style="margin-top:6px" onclick="document.getElementById('importFile').click()">Import from JSON backup</button>`;
+  } else {
+    exportRow.innerHTML = `
+      <button class="btn quiet" onclick="document.getElementById('importFile').click()">Restore from JSON backup</button>`;
+  }
+}
+async function importJSON(input){
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error("Not a Skywatch backup");
+    const have = new Set(entries.map(e=>e.id));
+    let added = 0;
+    data.forEach(e=>{
+      if (e && e.ts && !have.has(e.id)){ entries.push(e); added++; }
+    });
+    entries.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+    await store.save(entries);
+    renderHome();
+    toast(added ? `Imported ${added} report${added===1?"":"s"}` : "Nothing new to import");
+  }catch(e){
+    console.error(e);
+    toast("Couldn't read that file");
+  }
+}
+function esc(s){ const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const e = entries.find(x=>x.id===id); if(!e) return;
+  currentId = id;
+  const blk = (label, val)=> val ? `<div class="detail-block"><div class="eyebrow">${label}</div><p>${esc(val)}</p></div>` : "";
+  document.getElementById("detailBody").innerHTML = `
+    <div class="stamp">${fmt(e.ts)}</div>
+    ${blk("Situation", e.situation)}
+    ${blk("The thoughts", e.thoughts)}
+    ${blk("The weather in the body", e.feeling)}
+    ${e.patterns.length ? `<div class="detail-block"><div class="eyebrow">The story</div><div class="chips" style="margin-top:6px">${e.patterns.map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div></div>` : ""}
+    ${blk("The facts", e.facts)}
+    ${blk("In my control", e.control)}
+    ${blk("To a friend", e.friend)}`;
+  show("detail");
+}
+async function deleteCurrent(){
+  if (!confirm("Delete this report? This can't be undone.")) return;
+  entries = entries.filter(x=>x.id!==currentId);
+  await store.save(entries);
+  show("home");
+}
+
+/* ---------- export ---------- */
+function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
+function exportCSV(){
+  const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend"];
+  const rows = entries.map(e=>[e.ts,e.situation,e.thoughts,e.feeling,e.patterns.map(pname).join("; "),e.facts,e.control,e.friend].map(csvCell).join(","));
+  download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
+}
+function exportJSON(){
+  download("skywatch-entries.json","application/json",JSON.stringify(entries,null,2));
+}
+function entryText(e){
+  return `— ${fmt(e.ts)} —\nSituation: ${e.situation}\nThoughts: ${e.thoughts}\nFeeling: ${e.feeling}\nPatterns: ${e.patterns.map(pname).join(", ")}\nFacts: ${e.facts}\nIn my control: ${e.control}\nTo a friend: ${e.friend}`;
+}
+async function shareText(){
+  const text = entries.map(entryText).join("\n\n");
+  if (navigator.share){
+    try{ await navigator.share({title:"Skywatch entries", text}); }catch(e){/* cancelled */}
+  } else {
+    try{ await navigator.clipboard.writeText(text); toast("Copied to clipboard"); }
+    catch(e){ download("skywatch-entries.txt","text/plain",text); }
+  }
+}
+function download(name,type,content){
+  const blob = new Blob([content],{type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 3000);
+}
+
+/* ---------- reference ---------- */
+function renderReference(){
+  document.getElementById("patternList").innerHTML = PATTERNS.map(p=>`
+    <div class="pattern"><h3>${p.name}</h3><p>${p.desc}</p><div class="q">${p.q}</div></div>`).join("");
+}
+
+/* ---------- toast ---------- */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* ---------- init ---------- */
+(async function(){
+  await store.init();
+  entries = await store.load();
+  renderChips();
+  renderReference();
+  renderHome();
+})();
+</script>
+</body>
+</html>

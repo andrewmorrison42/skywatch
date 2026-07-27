@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#131B27">
+<link rel="apple-touch-icon" href="skywatch-icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="skywatch-icon-512.png">
+<title>Skywatch — Climate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#131B27; --horizon:#1D2938; --ridge:#2A3A4E;
+    --cloud:#E9EEF5; --mist:#8FA0B5;
+    --sun:#EFC368; --storm:#7A93B8; --ok:#8FC9A8;
+    --prism:#B48FD9;        /* climate accent — the prism, not the weather */
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--sky);color-scheme:dark}
+  html,body{height:100%}
+  body{
+    background:var(--sky);color:var(--cloud);
+    font-family:'Public Sans',system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.5;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overscroll-behavior:none;
+  }
+  #app{background:var(--sky);min-height:100dvh}
+  .screen{display:none;max-width:520px;margin:0 auto;padding:20px 18px 96px;min-height:100dvh}
+  .screen.active{display:block}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:.2px}
+  h1{font-size:1.7rem}
+  h2{font-size:1.25rem}
+  h3{font-size:1.02rem}
+  .eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;color:#B9C6D8;margin-bottom:4px;font-weight:600}
+  .sub{color:#AAB9CC;font-size:.92rem}
+  .stamp{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;color:#AAB9CC}
+  .note{margin-top:14px;font-size:.8rem;color:var(--mist)}
+
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  :focus-visible{outline:2px solid var(--sun);outline-offset:2px;border-radius:4px}
+  .btn{display:block;width:100%;text-align:center;padding:15px;border-radius:var(--radius);
+    background:var(--prism);color:#1A0F26;font-weight:600;font-size:1rem}
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:var(--horizon);color:var(--cloud);border:1px solid var(--ridge)}
+  .btn.quiet{background:none;color:var(--mist);font-weight:500;font-size:.9rem;padding:10px}
+  .row{display:flex;gap:10px}
+  .row .btn{flex:1}
+  .backlink{display:inline-block;color:var(--mist);font-size:.9rem;padding:6px 0;margin-bottom:8px}
+  .danger{color:#E08A8A}
+
+  header.app{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .toolbar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--sky) 34%);padding:24px 18px calc(16px + env(safe-area-inset-bottom))}
+  .toolbar .inner{max-width:520px;margin:0 auto}
+
+  /* signature: the prism — one ray in, a spread of bands out */
+  .prismfield{display:flex;align-items:center;gap:0;margin:22px 0 6px;height:34px}
+  .ray{height:1px;background:var(--mist);flex:0 0 74px}
+  .glass{width:0;height:0;border-top:15px solid transparent;border-bottom:15px solid transparent;
+    border-left:26px solid var(--ridge);flex:0 0 auto}
+  .bands{flex:1;display:flex;flex-direction:column;gap:3px;padding-left:2px}
+  .bands i{display:block;height:2px;border-radius:2px}
+  .bands i:nth-child(1){background:#E08A8A;width:96%}
+  .bands i:nth-child(2){background:var(--sun);width:88%}
+  .bands i:nth-child(3){background:var(--ok);width:80%}
+  .bands i:nth-child(4){background:var(--storm);width:72%}
+  .bands i:nth-child(5){background:var(--prism);width:64%}
+
+  .card{background:var(--horizon);border:1px solid var(--ridge);border-radius:var(--radius);
+    padding:14px 16px;margin-top:12px;width:100%;text-align:left;display:block}
+  .card .sit{font-weight:600;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .flag{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:#1A0F26;background:var(--sun);padding:2px 8px;border-radius:999px;margin-top:8px}
+  .flag.done{background:none;color:var(--ok);border:1px solid var(--ridge)}
+  .empty{margin-top:48px;text-align:center;color:var(--mist)}
+  .empty .glyph{font-family:'Fraunces',serif;font-size:2.4rem;color:var(--prism)}
+
+  /* belief strength */
+  .belief{margin-top:14px}
+  .belief .lbl{font-size:.9rem;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .belief .val{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--mist);white-space:nowrap}
+  .bar{height:6px;background:var(--ridge);border-radius:999px;margin-top:6px;overflow:hidden}
+  .bar span{display:block;height:100%;background:var(--prism)}
+  .delta.down{color:var(--ok)} .delta.up{color:#E08A8A}
+  input[type=range]{width:100%;margin-top:8px;accent-color:var(--prism)}
+
+  .field{margin-top:20px}
+  label.f{display:block;font-weight:600;font-size:1rem;margin-bottom:2px;color:#F4F7FB}
+  label.f small{display:block;font-weight:400;color:#A9B8CB;font-size:.85rem;margin-bottom:7px}
+  textarea,input[type=text]{
+    width:100%;background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;
+    color:var(--cloud);font:inherit;padding:12px 13px;min-height:52px;resize:vertical;caret-color:var(--prism)}
+  textarea.tall{min-height:84px}
+  textarea:focus,input:focus{outline:2px solid var(--prism);outline-offset:1px;border-color:transparent}
+  ::selection{background:var(--prism);color:#1A0F26}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:7px 12px;border-radius:999px;border:1px solid var(--ridge);
+    background:var(--horizon);color:var(--cloud);font-size:.85rem;font-weight:500}
+  .chip.on{background:var(--storm);border-color:var(--storm);color:#0F1621}
+  .chip.mini{padding:3px 9px;font-size:.72rem;color:var(--mist);background:none}
+  .chip-grid{display:grid;grid-template-columns:1fr;gap:8px}
+  .chip-unit{display:flex;align-items:stretch;border:1px solid var(--ridge);border-radius:12px;
+    background:var(--horizon);overflow:hidden;min-height:46px}
+  .chip-unit .pick{flex:1;text-align:left;padding:9px 4px 9px 12px;font-size:.85rem;font-weight:500;
+    color:var(--cloud);line-height:1.3;display:flex;align-items:center}
+  .chip-unit .info{width:38px;display:flex;align-items:center;justify-content:center;
+    color:var(--mist);border-left:1px solid var(--ridge);font-size:.95rem;flex-shrink:0}
+  .chip-unit.on{background:var(--prism);border-color:var(--prism)}
+  .chip-unit.on .pick{color:#1A0F26;font-weight:600}
+  .chip-unit.on .info{color:#1A0F26;border-left-color:rgba(26,15,38,.25)}
+  .chip-info{margin-top:10px;background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;
+    padding:12px 14px;font-size:.9rem;display:none}
+  .chip-info.show{display:block}
+  .chip-info b{font-family:'Fraunces',serif}
+  .chip-info .q{color:var(--sun);margin-top:6px;font-style:italic}
+
+  .seg{display:flex;gap:8px;margin-top:8px}
+  .seg button{flex:1;padding:11px 6px;border-radius:12px;border:1px solid var(--ridge);
+    background:var(--horizon);font-size:.85rem;font-weight:500}
+  .seg button.on{background:var(--prism);border-color:var(--prism);color:#1A0F26;font-weight:600}
+
+  .pattern{background:var(--horizon);border:1px solid var(--ridge);border-radius:var(--radius);padding:14px 16px;margin-top:12px}
+  .pattern p{font-size:.9rem;color:var(--mist);margin-top:4px}
+  .pattern .q{font-size:.9rem;color:var(--sun);font-style:italic;margin-top:6px}
+
+  .detail-block{margin-top:18px}
+  .detail-block .eyebrow{margin-bottom:2px}
+  .detail-block p{white-space:pre-wrap}
+
+  .ledger{border-left:2px solid var(--ridge);padding-left:14px;margin-top:16px}
+  .ledger .said{color:var(--mist);font-size:.9rem}
+  .ledger .did{margin-top:4px}
+  .ledger .verdict{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-top:6px}
+  .verdict.no{color:var(--ok)} .verdict.part{color:var(--sun)} .verdict.yes{color:#E08A8A}
+  .tally{font-family:'Fraunces',serif;font-size:1.6rem}
+
+  #close{display:none;align-items:center;justify-content:center;text-align:center}
+  #close.active{display:flex}
+  .close-wrap{width:100%;padding:10px}
+  .close-line{font-family:'Fraunces',Georgia,serif;font-size:1.4rem;line-height:1.45;color:#F4F7FB;font-weight:400}
+
+  .toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    background:var(--cloud);color:#131B27;padding:9px 16px;border-radius:999px;font-size:.88rem;font-weight:600;
+    opacity:0;pointer-events:none;transition:opacity .25s;z-index:50}
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ============ HOME ============ -->
+<section class="screen active" id="home">
+  <header class="app">
+    <div>
+      <div class="eyebrow">Skywatch · Climate</div>
+      <h1>The prism</h1>
+    </div>
+    <div style="text-align:right">
+      <button class="quiet btn" style="width:auto;padding:6px 0" onclick="show('guide')">Prisms</button><br>
+      <a class="backlink" href="index.html" style="padding:0">Weather →</a>
+    </div>
+  </header>
+  <p class="sub">Weather is what happened today. Climate is the lens it arrived through.</p>
+
+  <div class="prismfield" aria-hidden="true">
+    <div class="ray"></div><div class="glass"></div>
+    <div class="bands"><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+
+  <div id="beliefCard"></div>
+  <div id="ledgerCard"></div>
+
+  <div class="eyebrow" style="margin-top:30px">Climate reports</div>
+  <div id="entryList"></div>
+  <div id="emptyState" class="empty">
+    <div class="glyph">△</div>
+    <p>Nothing logged yet.<br>Log one when you notice the old pull — to please, to soften, to say yes.</p>
+  </div>
+
+  <div style="margin-top:26px" id="exportRow"></div>
+
+  <div class="toolbar"><div class="inner">
+    <button class="btn" onclick="startEntry()">New climate report</button>
+  </div></div>
+</section>
+
+<!-- ============ ENTRY ============ -->
+<section class="screen" id="entry">
+  <button class="backlink" onclick="confirmLeave()">← Back</button>
+  <div class="eyebrow" id="entryStamp"></div>
+  <h2>Through the prism</h2>
+  <p class="sub">Six minutes, not sixty. If you find yourself getting it right, that's the pattern showing up in the worksheet.</p>
+
+  <div class="field">
+    <label class="f" for="fTrigger">What happened<small>The observable event only. No interpretation yet.</small></label>
+    <textarea id="fTrigger"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f">Which prism<small>Which old belief did the event land on? Tap to select. Tap ⓘ for the description.</small></label>
+    <div class="chip-grid" id="schemaRow"></div>
+    <div class="chip-info" id="chipInfo"></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fPerception">What it looked like through it<small>The meaning that arrived instantly, before you thought about it.</small></label>
+    <textarea id="fPerception" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fBody">Where it landed in the body<small>Sensation and urge. Not the story — the physics.</small></label>
+    <textarea id="fBody"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f">The move it demanded<small>What did the belief want you to do, right then?</small></label>
+    <div class="chips" id="pullRow"></div>
+  </div>
+
+  <div class="field">
+    <label class="f">Did you make the move?</label>
+    <div class="seg" id="followedSeg"></div>
+  </div>
+
+  <div class="field">
+    <label class="f">What it bought you<small>Short-term payoff. Be honest — it works, that's why it survived.</small></label>
+    <div class="chips" id="payoffRow"></div>
+  </div>
+
+  <div class="field">
+    <label class="f">What it cost<small>The bill arrives later. Name it now.</small></label>
+    <div class="chips" id="costRow"></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fAction">The values move<small>What would the same situation look like if you acted from your values instead? Smallest concrete version.</small></label>
+    <textarea id="fAction" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fPrediction">What the prism says will happen if you do that<small>The catastrophe, in its own words. Specific and falsifiable — who does what, and when.</small></label>
+    <textarea id="fPrediction" class="tall"></textarea>
+    <div class="seg" id="confSeg" style="margin-top:10px"></div>
+  </div>
+
+  <div class="eyebrow" style="margin-top:34px">Self-compassion</div>
+  <h3 style="margin-top:2px">Same terms you'd give anyone else</h3>
+
+  <div class="field">
+    <label class="f" for="fNotice">Name it plainly<small>"There's the pleasing story again, and here's what it feels like." Describe, don't argue with it.</small></label>
+    <textarea id="fNotice"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fHuman">Where it was learned<small>This belief was installed somewhere and it kept you safe at the time. Where? Who else do you know who carries the same one?</small></label>
+    <textarea id="fHuman"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fOffer">Say it to yourself, then take it<small>Write what you'd say to someone you respect in this exact spot. Then answer honestly: can you accept it, or does it only count coming from someone else?</small></label>
+    <textarea id="fOffer" class="tall"></textarea>
+  </div>
+
+  <div style="margin-top:28px" class="row">
+    <button class="btn" onclick="saveEntry()">Save climate report</button>
+  </div>
+</section>
+
+<!-- ============ DETAIL ============ -->
+<section class="screen" id="detail">
+  <button class="backlink" onclick="show('home')">← All reports</button>
+  <div id="detailBody"></div>
+  <div id="outcomeArea"></div>
+  <div style="margin-top:30px">
+    <button class="btn quiet danger" onclick="deleteCurrent()">Delete this report</button>
+  </div>
+</section>
+
+<!-- ============ OUTCOME ============ -->
+<section class="screen" id="outcome">
+  <button class="backlink" onclick="openDetail(currentId)">← Back to report</button>
+  <div class="eyebrow">Follow-up</div>
+  <h2>What actually happened</h2>
+  <div class="card" style="margin-top:14px">
+    <div class="eyebrow">The prediction was</div>
+    <p id="oPrediction" style="white-space:pre-wrap"></p>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fWhat">What actually happened<small>Observable outcome. What did the other person actually do?</small></label>
+    <textarea id="fWhat" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f">Did the prediction come true?</label>
+    <div class="seg" id="matchSeg"></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fLearned">What that tells the prism<small>One sentence. This is the entry that changes the belief, not the analysis above it.</small></label>
+    <textarea id="fLearned"></textarea>
+  </div>
+
+  <div style="margin-top:28px">
+    <button class="btn" onclick="saveOutcome()">Save follow-up</button>
+  </div>
+</section>
+
+<!-- ============ LEDGER ============ -->
+<section class="screen" id="ledger">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Evidence</div>
+  <h2>The ledger</h2>
+  <p class="sub">Beliefs don't shift by being argued with. They shift by being outvoted. Each line is one vote.</p>
+  <div id="ledgerBody"></div>
+</section>
+
+<!-- ============ BELIEF CHECK-IN ============ -->
+<section class="screen" id="checkin">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Check-in</div>
+  <h2>How strong is it today?</h2>
+  <p class="sub">Not "is it true" — how much grip does it have right now, 0 to 100. Monthly is plenty. More often and you're measuring the weather again.</p>
+  <div id="checkinBody" style="margin-top:20px"></div>
+  <div style="margin-top:28px">
+    <button class="btn" onclick="saveCheckin()">Save check-in</button>
+  </div>
+</section>
+
+<!-- ============ FIELD GUIDE ============ -->
+<section class="screen" id="guide">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Field guide</div>
+  <h2>The prisms</h2>
+  <p class="sub">A schema isn't a thought you had. It's the shape of the glass every event passes through on the way in. You don't see it — you see what it did to the light.</p>
+  <div id="guideList"></div>
+  <p class="note">Belief wording adapted from a standard healthy/unhealthy core-belief inventory; the activation cycle follows the schema formulation model. Personal use.</p>
+</section>
+
+<!-- ============ CLOSE ============ -->
+<section class="screen" id="close">
+  <div class="close-wrap">
+    <div class="prismfield" style="justify-content:center" aria-hidden="true">
+      <div class="ray"></div><div class="glass"></div>
+      <div class="bands"><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="eyebrow" style="margin-top:26px">Logged</div>
+    <p class="close-line" id="closeLine"></p>
+    <button class="btn" style="margin-top:34px" onclick="show('home')">Done</button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importJSON(this)">
+</div>
+
+<script>
+/* ================= data ================= */
+
+/* Core beliefs to track. Edit freely — id must stay stable once used. */
+const BELIEFS = [
+  {id:"please",   name:"To be accepted, I must always please others.",
+   desc:"Acceptance is treated as conditional and re-earned transaction by transaction. Every interaction becomes a small audition.",
+   q:"Whose approval am I buying here, and what am I paying with?"},
+  {id:"mistake",  name:"If I make one mistake, I will lose everything.",
+   desc:"A single error is read as a threat to the whole structure — job, standing, relationships — rather than as an error.",
+   q:"What has actually happened, historically, after a mistake?"},
+  {id:"perfect",  name:"I must be perfect to be accepted.",
+   desc:"Standards stop being a tool for good work and become the toll paid for belonging.",
+   q:"Is this a standard, or a toll? Would I set it for someone else?"},
+  {id:"fake",     name:"I'm a fake — if they really knew me, they wouldn't like me.",
+   desc:"Competence is attributed to concealment. Praise becomes evidence the cover is holding, not evidence of the work.",
+   q:"What would they actually see — not what does the fear predict they'd see?"},
+  {id:"weakness", name:"Never show weakness.",
+   desc:"Need, uncertainty and limits get classified as exposure, so they're managed privately and at cost.",
+   q:"Who taught me this, and is that still the room I'm standing in?"},
+  {id:"control",  name:"I must always be in control.",
+   desc:"Holding everything is experienced as safety, so delegation and uncertainty read as danger rather than as normal.",
+   q:"What am I holding right now, and what would it actually cost to set it down?"},
+  {id:"used",     name:"Other people will take advantage of me.",
+   desc:"The flip side of pleasing: comply, then watch for the exploitation that compliance invites. Both feed resentment.",
+   q:"Is this vigilance protecting me, or is it keeping me at a distance from people?"},
+  {id:"succeed",  name:"If I choose to do something, I must succeed.",
+   desc:"Choosing is treated as a commitment to an outcome, so choosing at all becomes risky.",
+   q:"Am I allowed to try something and be ordinary at it?"},
+];
+
+const PULLS = [
+  "Said yes when I meant no","Over-apologised","Softened / hedged the message",
+  "Over-explained and justified","Took the task on myself","Went quiet, didn't raise it",
+  "Rehearsed and redrafted it","Checked for reassurance","Performed being fine",
+];
+const PAYOFFS = [
+  "Avoided a confrontation","Avoided conflict","Didn't have to ask for what I wanted",
+  "Didn't have to decide whether I'm OK","Stayed the reliable one","Kept the peace short-term",
+];
+const COSTS = [
+  "Crossed my own value","Didn't get what I wanted","Banked resentment",
+  "Took on someone else's problem","Diluted my honesty","Gave away time / capacity",
+  "Taught them to ask again",
+];
+const FOLLOWED = [{v:"no",l:"No"},{v:"part",l:"Partly"},{v:"yes",l:"Yes, fully"}];
+const CONF = [{v:90,l:"Certain"},{v:70,l:"Likely"},{v:50,l:"Even odds"},{v:25,l:"Unlikely"}];
+const MATCH = [{v:"no",l:"Didn't happen"},{v:"part",l:"Partly"},{v:"yes",l:"It happened"}];
+
+const CLOSERS = [
+  "The belief made a claim. Now it has to wait for the evidence.",
+  "You didn't have to win the argument with it. You just had to write down what happened.",
+  "Noticing the glass is different from being the glass.",
+  "That was one vote. Beliefs are outvoted, not outargued.",
+  "You gave yourself the same terms you'd give anyone else. That's the whole exercise.",
+  "Nothing to fix. Something to observe.",
+];
+
+/* ================= storage ================= */
+const KEY = "skywatch-climate";
+const BKEY = "skywatch-beliefs";
+let mem = {};
+const store = {
+  mode:"memory",
+  localOK(){ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } },
+  async init(){
+    if (typeof window.storage?.set === "function"){
+      try{
+        const r = await window.storage.set("__climate_probe","1");
+        if (r && r.key === "__climate_probe"){
+          try{ await window.storage.delete("__climate_probe"); }catch(e){}
+          this.mode = "claude"; return;
+        }
+      }catch(e){ console.warn("Artifact storage unavailable:", e); }
+    }
+    this.mode = this.localOK() ? "local" : "memory";
+  },
+  async load(k){
+    try{
+      if (this.mode === "claude"){
+        try{ const r = await window.storage.get(k); if (r) return JSON.parse(r.value); }catch(e){}
+      }
+      if (this.mode !== "memory"){
+        const v = this.localOK() ? localStorage.getItem(k) : null;
+        if (v) return JSON.parse(v);
+      }
+      return mem[k] || [];
+    }catch(e){ console.error(e); return mem[k] || []; }
+  },
+  async save(k, data){
+    mem[k] = data;
+    const json = JSON.stringify(data);
+    if (this.mode === "claude"){
+      try{ await window.storage.set(k, json); return; }
+      catch(e){ console.warn("write failed, falling back:", e); this.mode = this.localOK() ? "local" : "memory"; }
+    }
+    if (this.mode === "local"){
+      try{ localStorage.setItem(k, json); return; }catch(e){ console.error(e); this.mode = "memory"; }
+    }
+    if (this.mode === "memory") toast("Saved for this session only — export to keep");
+  }
+};
+
+/* ================= state ================= */
+let entries = [];
+let checkins = [];
+let currentId = null;
+let sel = { schemas:new Set(), pulls:new Set(), payoffs:new Set(), costs:new Set() };
+let followed = null, conf = null, matchVal = null;
+
+/* ================= nav ================= */
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+  if (id === "home") renderHome();
+  if (id === "ledger") renderLedger();
+  if (id === "checkin") renderCheckin();
+  if (id === "guide") renderGuide();
+}
+function esc(s){ const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+function fmt(d){
+  return new Date(d).toLocaleString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false});
+}
+function fmtDate(d){
+  return new Date(d).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+}
+function bname(id){ const b = BELIEFS.find(x=>x.id===id); return b ? b.name : id; }
+
+/* ================= entry form ================= */
+function startEntry(){
+  ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer"]
+    .forEach(i=>document.getElementById(i).value="");
+  sel = { schemas:new Set(), pulls:new Set(), payoffs:new Set(), costs:new Set() };
+  followed = null; conf = null;
+  document.getElementById("chipInfo").classList.remove("show");
+  document.getElementById("entryStamp").textContent = fmt(new Date());
+  renderSchemaChips();
+  renderChipSet("pullRow", PULLS, sel.pulls);
+  renderChipSet("payoffRow", PAYOFFS, sel.payoffs);
+  renderChipSet("costRow", COSTS, sel.costs);
+  renderSegF();
+  show("entry");
+}
+function renderSegF(){
+  renderSeg("followedSeg", FOLLOWED, ()=>followed, v=>{ followed=v; renderSegF(); });
+  renderSeg("confSeg", CONF, ()=>conf, v=>{ conf=v; renderSegF(); });
+}
+function renderSeg(elId, opts, getter, onPick){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = "";
+  opts.forEach(o=>{
+    const b = document.createElement("button");
+    b.textContent = o.l;
+    b.className = getter() === o.v ? "on" : "";
+    b.setAttribute("aria-pressed", getter() === o.v);
+    b.onclick = ()=>onPick(o.v);
+    el.appendChild(b);
+  });
+}
+function renderChipSet(elId, list, set){
+  const el = document.getElementById(elId);
+  el.innerHTML = "";
+  list.forEach(name=>{
+    const b = document.createElement("button");
+    b.className = "chip" + (set.has(name) ? " on" : "");
+    b.textContent = name;
+    b.setAttribute("aria-pressed", set.has(name));
+    b.onclick = ()=>{ set.has(name) ? set.delete(name) : set.add(name); renderChipSet(elId, list, set); };
+    el.appendChild(b);
+  });
+}
+function renderSchemaChips(){
+  const row = document.getElementById("schemaRow");
+  row.innerHTML = "";
+  BELIEFS.forEach(b=>{
+    const unit = document.createElement("div");
+    unit.className = "chip-unit" + (sel.schemas.has(b.id) ? " on" : "");
+    const pick = document.createElement("button");
+    pick.className = "pick";
+    pick.textContent = b.name;
+    pick.setAttribute("aria-pressed", sel.schemas.has(b.id));
+    pick.onclick = ()=>{ sel.schemas.has(b.id) ? sel.schemas.delete(b.id) : sel.schemas.add(b.id); renderSchemaChips(); };
+    const info = document.createElement("button");
+    info.className = "info";
+    info.setAttribute("aria-label", "About this belief");
+    info.textContent = "\u24D8";
+    info.onclick = ()=>{
+      const el = document.getElementById("chipInfo");
+      el.innerHTML = `<b>${esc(b.name)}</b><div style="margin-top:4px">${esc(b.desc)}</div><div class="q">${esc(b.q)}</div>`;
+      el.classList.add("show");
+    };
+    unit.appendChild(pick); unit.appendChild(info);
+    row.appendChild(unit);
+  });
+}
+function confirmLeave(){
+  const dirty = ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer"]
+    .some(i=>document.getElementById(i).value.trim())
+    || sel.schemas.size || sel.pulls.size || sel.payoffs.size || sel.costs.size;
+  if (!dirty || confirm("Discard this climate report?")) show("home");
+}
+async function saveEntry(){
+  const get = i => document.getElementById(i).value.trim();
+  if (!get("fTrigger") && !sel.schemas.size){ toast("Log the event or the belief first"); return; }
+  entries.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    trigger:get("fTrigger"), schemas:[...sel.schemas], perception:get("fPerception"),
+    body:get("fBody"), pulls:[...sel.pulls], followed,
+    payoffs:[...sel.payoffs], costs:[...sel.costs],
+    action:get("fAction"), prediction:get("fPrediction"), conf,
+    notice:get("fNotice"), human:get("fHuman"), offer:get("fOffer"),
+    outcome:null
+  });
+  await store.save(KEY, entries);
+  document.getElementById("closeLine").textContent = CLOSERS[Math.floor(Math.random()*CLOSERS.length)];
+  show("close");
+}
+
+/* ================= home ================= */
+function needsFollowUp(e){
+  return e.prediction && !e.outcome && (Date.now() - new Date(e.ts).getTime()) > 20*60*60*1000;
+}
+function renderHome(){
+  renderBeliefCard();
+  renderLedgerCard();
+  const list = document.getElementById("entryList");
+  list.innerHTML = "";
+  document.getElementById("emptyState").style.display = entries.length ? "none" : "block";
+  entries.forEach(e=>{
+    const b = document.createElement("button");
+    b.className = "card";
+    b.onclick = ()=>openDetail(e.id);
+    const flag = needsFollowUp(e) ? `<span class="flag">Follow-up due</span>`
+      : (e.outcome ? `<span class="flag done">Followed up</span>` : "");
+    b.innerHTML = `
+      <div class="stamp">${fmt(e.ts)}</div>
+      <div class="sit">${esc(e.trigger || e.perception)}</div>
+      <div class="chips">${e.schemas.map(s=>`<span class="chip mini">${esc(bname(s))}</span>`).join("")}</div>
+      ${flag}`;
+    list.appendChild(b);
+  });
+  const ex = document.getElementById("exportRow");
+  ex.innerHTML = entries.length ? `
+      <div class="eyebrow" style="margin-bottom:8px">Export / backup</div>
+      <div class="row">
+        <button class="btn ghost" onclick="exportCSV()">CSV</button>
+        <button class="btn ghost" onclick="exportJSON()">JSON</button>
+      </div>
+      <button class="btn quiet" style="margin-top:6px" onclick="document.getElementById('importFile').click()">Import from JSON backup</button>`
+    : `<button class="btn quiet" onclick="document.getElementById('importFile').click()">Restore from JSON backup</button>`;
+}
+function renderBeliefCard(){
+  const el = document.getElementById("beliefCard");
+  const last = checkins[0], prev = checkins[1];
+  if (!last){
+    el.innerHTML = `<button class="card" onclick="show('checkin')">
+      <div class="eyebrow">Belief strength</div>
+      <div class="sit">No check-in yet</div>
+      <div class="sub">Rate how much grip each belief has today. It's the only number here worth trending.</div></button>`;
+    return;
+  }
+  const rows = BELIEFS.filter(b=>last.scores[b.id] != null).map(b=>{
+    const v = last.scores[b.id];
+    const p = prev ? prev.scores[b.id] : null;
+    let d = "";
+    if (p != null && p !== v){
+      const diff = v - p;
+      d = `<span class="delta ${diff<0?"down":"up"}">${diff>0?"+":""}${diff}</span>`;
+    }
+    return `<div class="belief">
+      <div class="lbl"><span>${esc(b.name)}</span><span class="val">${v} ${d}</span></div>
+      <div class="bar"><span style="width:${v}%"></span></div></div>`;
+  }).join("");
+  el.innerHTML = `<button class="card" onclick="show('checkin')">
+    <div class="eyebrow">Belief strength · ${fmtDate(last.ts)}</div>${rows}
+    <div class="sub" style="margin-top:12px">Tap to check in again</div></button>`;
+}
+function renderLedgerCard(){
+  const el = document.getElementById("ledgerCard");
+  const done = entries.filter(e=>e.outcome);
+  if (!done.length){ el.innerHTML = ""; return; }
+  const missed = done.filter(e=>e.outcome.match === "no").length;
+  const part = done.filter(e=>e.outcome.match === "part").length;
+  el.innerHTML = `<button class="card" onclick="show('ledger')">
+    <div class="eyebrow">The ledger</div>
+    <div class="tally">${missed} of ${done.length}</div>
+    <div class="sub">predicted catastrophes didn't happen${part?`; ${part} partly did`:""}. Tap to read them.</div></button>`;
+}
+
+/* ================= detail ================= */
+function openDetail(id){
+  const e = entries.find(x=>x.id===id); if(!e) return;
+  currentId = id;
+  const blk = (l,v)=> v ? `<div class="detail-block"><div class="eyebrow">${l}</div><p>${esc(v)}</p></div>` : "";
+  const chipBlk = (l,arr)=> arr && arr.length
+    ? `<div class="detail-block"><div class="eyebrow">${l}</div><div class="chips" style="margin-top:6px">${arr.map(x=>`<span class="chip mini">${esc(x)}</span>`).join("")}</div></div>` : "";
+  const fl = FOLLOWED.find(f=>f.v===e.followed);
+  const cf = CONF.find(c=>c.v===e.conf);
+  document.getElementById("detailBody").innerHTML = `
+    <div class="stamp">${fmt(e.ts)}</div>
+    ${blk("What happened", e.trigger)}
+    ${chipBlk("Prism", e.schemas.map(bname))}
+    ${blk("Through the prism", e.perception)}
+    ${blk("In the body", e.body)}
+    ${chipBlk("The move it demanded", e.pulls)}
+    ${fl ? `<div class="detail-block"><div class="eyebrow">Made the move</div><p>${fl.l}</p></div>` : ""}
+    ${chipBlk("What it bought", e.payoffs)}
+    ${chipBlk("What it cost", e.costs)}
+    ${blk("The values move", e.action)}
+    ${blk("Prediction" + (cf ? ` (${cf.l})` : ""), e.prediction)}
+    ${blk("Named plainly", e.notice)}
+    ${blk("Where it was learned", e.human)}
+    ${blk("Same terms", e.offer)}`;
+  const oa = document.getElementById("outcomeArea");
+  if (e.outcome){
+    const m = MATCH.find(x=>x.v===e.outcome.match);
+    oa.innerHTML = `<div class="ledger">
+      <div class="eyebrow">Follow-up · ${fmt(e.outcome.ts)}</div>
+      <div class="did">${esc(e.outcome.what)}</div>
+      ${m ? `<div class="verdict ${e.outcome.match}">${m.l}</div>` : ""}
+      ${e.outcome.learned ? `<p style="margin-top:8px">${esc(e.outcome.learned)}</p>` : ""}
+      </div>
+      <button class="btn ghost" style="margin-top:16px" onclick="startOutcome()">Edit follow-up</button>`;
+  } else if (e.prediction){
+    oa.innerHTML = `<button class="btn" style="margin-top:22px" onclick="startOutcome()">Record what actually happened</button>`;
+  } else {
+    oa.innerHTML = "";
+  }
+  show("detail");
+}
+async function deleteCurrent(){
+  if (!confirm("Delete this climate report? This can't be undone.")) return;
+  entries = entries.filter(x=>x.id!==currentId);
+  await store.save(KEY, entries);
+  show("home");
+}
+
+/* ================= outcome ================= */
+function startOutcome(){
+  const e = entries.find(x=>x.id===currentId); if(!e) return;
+  document.getElementById("oPrediction").textContent = e.prediction || "(none recorded)";
+  document.getElementById("fWhat").value = e.outcome ? e.outcome.what : "";
+  document.getElementById("fLearned").value = e.outcome ? e.outcome.learned : "";
+  matchVal = e.outcome ? e.outcome.match : null;
+  renderSegM();
+  show("outcome");
+}
+function renderSegM(){ renderSeg("matchSeg", MATCH, ()=>matchVal, v=>{ matchVal=v; renderSegM(); }); }
+async function saveOutcome(){
+  const e = entries.find(x=>x.id===currentId); if(!e) return;
+  const what = document.getElementById("fWhat").value.trim();
+  if (!what){ toast("Write what actually happened"); return; }
+  e.outcome = { ts:new Date().toISOString(), what, match:matchVal, learned:document.getElementById("fLearned").value.trim() };
+  await store.save(KEY, entries);
+  openDetail(currentId);
+  toast("Follow-up saved");
+}
+
+/* ================= ledger ================= */
+function renderLedger(){
+  const done = entries.filter(e=>e.outcome);
+  const el = document.getElementById("ledgerBody");
+  if (!done.length){
+    el.innerHTML = `<div class="empty"><div class="glyph">△</div><p>Nothing settled yet.<br>Make a prediction, then come back and record what happened.</p></div>`;
+    return;
+  }
+  el.innerHTML = done.map(e=>{
+    const m = MATCH.find(x=>x.v===e.outcome.match);
+    return `<div class="ledger" style="margin-top:22px">
+      <div class="stamp">${fmtDate(e.ts)}</div>
+      <div class="said">It said: ${esc(e.prediction)}</div>
+      <div class="did">What happened: ${esc(e.outcome.what)}</div>
+      ${m ? `<div class="verdict ${e.outcome.match}">${m.l}</div>` : ""}
+      ${e.outcome.learned ? `<p style="margin-top:6px;color:var(--cloud)">${esc(e.outcome.learned)}</p>` : ""}
+    </div>`;
+  }).join("");
+}
+
+/* ================= belief check-in ================= */
+function renderCheckin(){
+  const last = checkins[0];
+  document.getElementById("checkinBody").innerHTML = BELIEFS.map(b=>{
+    const v = last && last.scores[b.id] != null ? last.scores[b.id] : 50;
+    return `<div class="belief" style="margin-top:22px">
+      <div class="lbl"><span>${esc(b.name)}</span><span class="val" id="v_${b.id}">${v}</span></div>
+      <input type="range" min="0" max="100" step="5" value="${v}" id="s_${b.id}"
+        oninput="document.getElementById('v_${b.id}').textContent=this.value">
+    </div>`;
+  }).join("");
+}
+async function saveCheckin(){
+  const scores = {};
+  BELIEFS.forEach(b=>{ scores[b.id] = Number(document.getElementById("s_"+b.id).value); });
+  checkins.unshift({ ts:new Date().toISOString(), scores });
+  await store.save(BKEY, checkins);
+  show("home");
+  toast("Check-in saved");
+}
+
+/* ================= guide ================= */
+function renderGuide(){
+  document.getElementById("guideList").innerHTML = BELIEFS.map(b=>`
+    <div class="pattern"><h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p><div class="q">${esc(b.q)}</div></div>`).join("");
+}
+
+/* ================= export / import ================= */
+function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
+function exportCSV(){
+  const head = ["timestamp","event","beliefs","perception","body","pull","made_the_move","bought","cost",
+    "values_move","prediction","confidence","named_plainly","where_learned","same_terms",
+    "followup_timestamp","what_happened","prediction_came_true","what_it_taught"];
+  const rows = entries.map(e=>[
+    e.ts, e.trigger, e.schemas.map(bname).join("; "), e.perception, e.body,
+    (e.pulls||[]).join("; "), (FOLLOWED.find(f=>f.v===e.followed)||{}).l, (e.payoffs||[]).join("; "),
+    (e.costs||[]).join("; "), e.action, e.prediction, e.conf, e.notice, e.human, e.offer,
+    e.outcome?.ts, e.outcome?.what, (MATCH.find(m=>m.v===e.outcome?.match)||{}).l, e.outcome?.learned
+  ].map(csvCell).join(","));
+  download("skywatch-climate.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
+}
+function exportJSON(){
+  download("skywatch-climate.json","application/json",JSON.stringify({entries,checkins},null,2));
+}
+async function importJSON(input){
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return;
+  try{
+    const data = JSON.parse(await file.text());
+    const inc = Array.isArray(data) ? {entries:data, checkins:[]} : data;
+    if (!Array.isArray(inc.entries)) throw new Error("Not a Climate backup");
+    const have = new Set(entries.map(e=>e.id));
+    let added = 0;
+    inc.entries.forEach(e=>{ if (e && e.ts && !have.has(e.id)){ entries.push(e); added++; } });
+    entries.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+    if (Array.isArray(inc.checkins)){
+      const seen = new Set(checkins.map(c=>c.ts));
+      inc.checkins.forEach(c=>{ if (c && c.ts && !seen.has(c.ts)) checkins.push(c); });
+      checkins.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
+      await store.save(BKEY, checkins);
+    }
+    await store.save(KEY, entries);
+    renderHome();
+    toast(added ? `Imported ${added} report${added===1?"":"s"}` : "Nothing new to import");
+  }catch(e){ console.error(e); toast("Couldn't read that file"); }
+}
+function download(name,type,content){
+  const blob = new Blob([content],{type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 3000);
+}
+
+/* ================= toast ================= */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+/* ================= init ================= */
+(async function(){
+  await store.init();
+  entries = await store.load(KEY);
+  checkins = await store.load(BKEY);
+  renderGuide();
+  renderHome();
+})();
+</script>
+</body>
+</html>

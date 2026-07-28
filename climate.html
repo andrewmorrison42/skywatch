@@ -173,6 +173,7 @@
     <div class="bands"><i></i><i></i><i></i><i></i><i></i></div>
   </div>
 
+  <div id="mantraCard"></div>
   <div id="beliefCard"></div>
   <div id="ledgerCard"></div>
 
@@ -195,6 +196,7 @@
   <button class="backlink" onclick="confirmLeave()">← Back</button>
   <div class="eyebrow" id="entryStamp"></div>
   <h2>Through the prism</h2>
+  <div id="entryMantra"></div>
   <p class="sub">Six minutes, not sixty. If you find yourself getting it right, that's the pattern showing up in the worksheet.</p>
 
   <div class="field">
@@ -209,7 +211,7 @@
   </div>
 
   <div class="field">
-    <label class="f" for="fPerception">What it looked like through it<small>The meaning that arrived instantly, before you thought about it.</small></label>
+    <label class="f" for="fPerception">What it looked like through it<small>The meaning that arrived instantly, before you thought about it. Observe it — don’t absorb it. Whose energy is in this, yours or theirs?</small></label>
     <textarea id="fPerception" class="tall"></textarea>
   </div>
 
@@ -238,8 +240,34 @@
     <div class="chips" id="costRow"></div>
   </div>
 
+  <div class="eyebrow" style="margin-top:34px">Get anchored first</div>
+  <h3 style="margin-top:2px">Self-compassion</h3>
+  <p class="sub" style="margin-top:4px">Not a reward for handling it well. The thing you do before you decide anything.</p>
+
   <div class="field">
-    <label class="f" for="fAction">The values move<small>What would the same situation look like if you acted from your values instead? Smallest concrete version.</small></label>
+    <label class="f" for="fNotice">Name it plainly<small>"There's the pleasing story again, and here's what it feels like." Describe it, don't argue with it.</small></label>
+    <textarea id="fNotice"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fHuman">Where it was learned<small>To survive, you please the tribe. This belief kept you safe somewhere. Where? Who else do you know who carries the same one?</small></label>
+    <textarea id="fHuman"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fOffer">Say it to yourself, then take it<small>What would you say to someone you respect in this exact spot — same words, same tone? Then answer honestly: can you accept it, or does it only count coming from someone else?</small></label>
+    <textarea id="fOffer" class="tall"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fNeed">What do you need right now?<small>Not what would fix it, and not how you're doing. What do you need, in this moment, before you act.</small></label>
+    <textarea id="fNeed"></textarea>
+  </div>
+
+  <div class="eyebrow" style="margin-top:34px">Then decide</div>
+
+  <div class="field">
+    <label class="f" for="fAction">The values move<small>Aim for the optimal outcome, not the one that keeps everyone happy. Smallest concrete version.</small></label>
     <textarea id="fAction" class="tall"></textarea>
   </div>
 
@@ -247,24 +275,6 @@
     <label class="f" for="fPrediction">What the prism says will happen if you do that<small>The catastrophe, in its own words. Specific and falsifiable — who does what, and when.</small></label>
     <textarea id="fPrediction" class="tall"></textarea>
     <div class="seg" id="confSeg" style="margin-top:10px"></div>
-  </div>
-
-  <div class="eyebrow" style="margin-top:34px">Self-compassion</div>
-  <h3 style="margin-top:2px">Same terms you'd give anyone else</h3>
-
-  <div class="field">
-    <label class="f" for="fNotice">Name it plainly<small>"There's the pleasing story again, and here's what it feels like." Describe, don't argue with it.</small></label>
-    <textarea id="fNotice"></textarea>
-  </div>
-
-  <div class="field">
-    <label class="f" for="fHuman">Where it was learned<small>This belief was installed somewhere and it kept you safe at the time. Where? Who else do you know who carries the same one?</small></label>
-    <textarea id="fHuman"></textarea>
-  </div>
-
-  <div class="field">
-    <label class="f" for="fOffer">Say it to yourself, then take it<small>Write what you'd say to someone you respect in this exact spot. Then answer honestly: can you accept it, or does it only count coming from someone else?</small></label>
-    <textarea id="fOffer" class="tall"></textarea>
   </div>
 
   <div style="margin-top:28px" class="row">
@@ -333,6 +343,19 @@
   </div>
 </section>
 
+<!-- ============ MANTRA ============ -->
+<section class="screen" id="mantra">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Standing line</div>
+  <h2>My line on pleasing</h2>
+  <p class="sub">One sentence, in your words, that you can reach for before you answer someone. Short enough to say in your head mid-conversation.</p>
+  <div class="field">
+    <label class="f" for="fMantra">The line<small>e.g. what the optimal outcome asks of you, versus what keeping everyone happy asks of you.</small></label>
+    <textarea id="fMantra" class="tall"></textarea>
+  </div>
+  <div style="margin-top:24px"><button class="btn" onclick="saveMantra()">Save the line</button></div>
+</section>
+
 <!-- ============ FIELD GUIDE ============ -->
 <section class="screen" id="guide">
   <button class="backlink" onclick="show('home')">← Back</button>
@@ -368,6 +391,9 @@ const BELIEFS = [
   {id:"please",   name:"To be accepted, I must always please others.",
    desc:"Acceptance is treated as conditional and re-earned transaction by transaction. Every interaction becomes a small audition.",
    q:"Whose approval am I buying here, and what am I paying with?"},
+  {id:"transient", name:"My worth is whatever the last person said about me.",
+   desc:"Value is recalculated after every interaction, so it can never be banked. This is the engine — if worth is transient, pleasing isn't a preference, it's maintenance.",
+   q:"Is this a verdict on me, or is it one person's reaction on one day?"},
   {id:"mistake",  name:"If I make one mistake, I will lose everything.",
    desc:"A single error is read as a threat to the whole structure — job, standing, relationships — rather than as an error.",
    q:"What has actually happened, historically, after a mistake?"},
@@ -421,6 +447,7 @@ const CLOSERS = [
 /* ================= storage ================= */
 const KEY = "skywatch-climate";
 const BKEY = "skywatch-beliefs";
+const MKEY = "skywatch-mantra";
 let mem = {};
 const store = {
   mode:"memory",
@@ -466,6 +493,7 @@ const store = {
 /* ================= state ================= */
 let entries = [];
 let checkins = [];
+let mantra = "";
 let currentId = null;
 let sel = { schemas:new Set(), pulls:new Set(), payoffs:new Set(), costs:new Set() };
 let followed = null, conf = null, matchVal = null;
@@ -479,6 +507,7 @@ function show(id){
   if (id === "ledger") renderLedger();
   if (id === "checkin") renderCheckin();
   if (id === "guide") renderGuide();
+  if (id === "mantra") document.getElementById("fMantra").value = mantra;
 }
 function esc(s){ const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
 function fmt(d){
@@ -491,12 +520,14 @@ function bname(id){ const b = BELIEFS.find(x=>x.id===id); return b ? b.name : id
 
 /* ================= entry form ================= */
 function startEntry(){
-  ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer"]
+  ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer","fNeed"]
     .forEach(i=>document.getElementById(i).value="");
   sel = { schemas:new Set(), pulls:new Set(), payoffs:new Set(), costs:new Set() };
   followed = null; conf = null;
   document.getElementById("chipInfo").classList.remove("show");
   document.getElementById("entryStamp").textContent = fmt(new Date());
+  document.getElementById("entryMantra").innerHTML = mantra
+    ? `<div class="card" style="border-color:var(--prism)"><div class="eyebrow">My line</div><div>${esc(mantra)}</div></div>` : "";
   renderSchemaChips();
   renderChipSet("pullRow", PULLS, sel.pulls);
   renderChipSet("payoffRow", PAYOFFS, sel.payoffs);
@@ -558,7 +589,7 @@ function renderSchemaChips(){
   });
 }
 function confirmLeave(){
-  const dirty = ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer"]
+  const dirty = ["fTrigger","fPerception","fBody","fAction","fPrediction","fNotice","fHuman","fOffer","fNeed"]
     .some(i=>document.getElementById(i).value.trim())
     || sel.schemas.size || sel.pulls.size || sel.payoffs.size || sel.costs.size;
   if (!dirty || confirm("Discard this climate report?")) show("home");
@@ -573,7 +604,7 @@ async function saveEntry(){
     body:get("fBody"), pulls:[...sel.pulls], followed,
     payoffs:[...sel.payoffs], costs:[...sel.costs],
     action:get("fAction"), prediction:get("fPrediction"), conf,
-    notice:get("fNotice"), human:get("fHuman"), offer:get("fOffer"),
+    notice:get("fNotice"), human:get("fHuman"), offer:get("fOffer"), need:get("fNeed"),
     outcome:null
   });
   await store.save(KEY, entries);
@@ -586,6 +617,7 @@ function needsFollowUp(e){
   return e.prediction && !e.outcome && (Date.now() - new Date(e.ts).getTime()) > 20*60*60*1000;
 }
 function renderHome(){
+  renderMantraCard();
   renderBeliefCard();
   renderLedgerCard();
   const list = document.getElementById("entryList");
@@ -613,6 +645,21 @@ function renderHome(){
       </div>
       <button class="btn quiet" style="margin-top:6px" onclick="document.getElementById('importFile').click()">Import from JSON backup</button>`
     : `<button class="btn quiet" onclick="document.getElementById('importFile').click()">Restore from JSON backup</button>`;
+}
+function renderMantraCard(){
+  const el = document.getElementById("mantraCard");
+  el.innerHTML = mantra
+    ? `<button class="card" onclick="show('mantra')"><div class="eyebrow">My line on pleasing</div>
+       <div class="close-line" style="font-size:1.1rem;margin-top:4px">${esc(mantra)}</div></button>`
+    : `<button class="card" onclick="show('mantra')"><div class="eyebrow">My line on pleasing</div>
+       <div class="sit">Not written yet</div>
+       <div class="sub">One sentence you can reach for before you answer someone.</div></button>`;
+}
+async function saveMantra(){
+  mantra = document.getElementById("fMantra").value.trim();
+  await store.save(MKEY, mantra);
+  show("home");
+  toast("Line saved");
 }
 function renderBeliefCard(){
   const el = document.getElementById("beliefCard");
@@ -675,7 +722,8 @@ function openDetail(id){
     ${blk("Prediction" + (cf ? ` (${cf.l})` : ""), e.prediction)}
     ${blk("Named plainly", e.notice)}
     ${blk("Where it was learned", e.human)}
-    ${blk("Same terms", e.offer)}`;
+    ${blk("Same terms", e.offer)}
+    ${blk("What I needed", e.need)}`;
   const oa = document.getElementById("outcomeArea");
   if (e.outcome){
     const m = MATCH.find(x=>x.v===e.outcome.match);
@@ -772,18 +820,18 @@ function renderGuide(){
 function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
 function exportCSV(){
   const head = ["timestamp","event","beliefs","perception","body","pull","made_the_move","bought","cost",
-    "values_move","prediction","confidence","named_plainly","where_learned","same_terms",
+    "values_move","prediction","confidence","named_plainly","where_learned","same_terms","what_i_needed",
     "followup_timestamp","what_happened","prediction_came_true","what_it_taught"];
   const rows = entries.map(e=>[
     e.ts, e.trigger, e.schemas.map(bname).join("; "), e.perception, e.body,
     (e.pulls||[]).join("; "), (FOLLOWED.find(f=>f.v===e.followed)||{}).l, (e.payoffs||[]).join("; "),
-    (e.costs||[]).join("; "), e.action, e.prediction, e.conf, e.notice, e.human, e.offer,
+    (e.costs||[]).join("; "), e.action, e.prediction, e.conf, e.notice, e.human, e.offer, e.need,
     e.outcome?.ts, e.outcome?.what, (MATCH.find(m=>m.v===e.outcome?.match)||{}).l, e.outcome?.learned
   ].map(csvCell).join(","));
   download("skywatch-climate.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }
 function exportJSON(){
-  download("skywatch-climate.json","application/json",JSON.stringify({entries,checkins},null,2));
+  download("skywatch-climate.json","application/json",JSON.stringify({entries,checkins,mantra},null,2));
 }
 async function importJSON(input){
   const file = input.files && input.files[0];
@@ -803,6 +851,7 @@ async function importJSON(input){
       checkins.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
       await store.save(BKEY, checkins);
     }
+    if (typeof inc.mantra === "string" && inc.mantra && !mantra){ mantra = inc.mantra; await store.save(MKEY, mantra); }
     await store.save(KEY, entries);
     renderHome();
     toast(added ? `Imported ${added} report${added===1?"":"s"}` : "Nothing new to import");
@@ -831,6 +880,8 @@ function toast(msg){
   await store.init();
   entries = await store.load(KEY);
   checkins = await store.load(BKEY);
+  const m = await store.load(MKEY);
+  mantra = typeof m === "string" ? m : "";
   renderGuide();
   renderHome();
 })();

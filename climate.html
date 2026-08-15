@@ -642,6 +642,7 @@ function renderHome(){
       <div class="row">
         <button class="btn ghost" onclick="exportCSV()">CSV</button>
         <button class="btn ghost" onclick="exportJSON()">JSON</button>
+        <button class="btn ghost" onclick="shareText()">Share</button>
       </div>
       <button class="btn quiet" style="margin-top:6px" onclick="document.getElementById('importFile').click()">Import from JSON backup</button>`
     : `<button class="btn quiet" onclick="document.getElementById('importFile').click()">Restore from JSON backup</button>`;
@@ -832,6 +833,49 @@ function exportCSV(){
 }
 function exportJSON(){
   download("skywatch-climate.json","application/json",JSON.stringify({entries,checkins,mantra},null,2));
+}
+function entryText(e){
+  const fl = FOLLOWED.find(f=>f.v===e.followed);
+  const cf = CONF.find(c=>c.v===e.conf);
+  const lines = [`— ${fmt(e.ts)} —`];
+  if (e.trigger) lines.push(`What happened: ${e.trigger}`);
+  if (e.schemas.length) lines.push(`Prism: ${e.schemas.map(bname).join(", ")}`);
+  if (e.perception) lines.push(`Through the prism: ${e.perception}`);
+  if (e.body) lines.push(`In the body: ${e.body}`);
+  if (e.pulls.length) lines.push(`The move it demanded: ${e.pulls.join(", ")}`);
+  if (fl) lines.push(`Made the move: ${fl.l}`);
+  if (e.payoffs.length) lines.push(`What it bought: ${e.payoffs.join(", ")}`);
+  if (e.costs.length) lines.push(`What it cost: ${e.costs.join(", ")}`);
+  if (e.action) lines.push(`The values move: ${e.action}`);
+  if (e.prediction) lines.push(`Prediction${cf ? ` (${cf.l})` : ""}: ${e.prediction}`);
+  if (e.notice) lines.push(`Named plainly: ${e.notice}`);
+  if (e.human) lines.push(`Where it was learned: ${e.human}`);
+  if (e.offer) lines.push(`Same terms: ${e.offer}`);
+  if (e.need) lines.push(`What I needed: ${e.need}`);
+  if (e.outcome){
+    const m = MATCH.find(x=>x.v===e.outcome.match);
+    lines.push(`Follow-up (${fmt(e.outcome.ts)}): ${e.outcome.what}${m ? ` — ${m.l}` : ""}`);
+    if (e.outcome.learned) lines.push(`What it taught: ${e.outcome.learned}`);
+  }
+  return lines.join("\n");
+}
+async function shareText(){
+  const parts = [];
+  if (mantra) parts.push(`My line on pleasing: ${mantra}`);
+  if (checkins[0]){
+    const last = checkins[0];
+    const rows = BELIEFS.filter(b=>last.scores[b.id] != null)
+      .map(b=>`  ${b.name}: ${last.scores[b.id]}`).join("\n");
+    if (rows) parts.push(`Belief strength (${fmtDate(last.ts)}):\n${rows}`);
+  }
+  parts.push(entries.map(entryText).join("\n\n"));
+  const text = parts.join("\n\n");
+  if (navigator.share){
+    try{ await navigator.share({title:"Skywatch climate entries", text}); }catch(e){/* cancelled */}
+  } else {
+    try{ await navigator.clipboard.writeText(text); toast("Copied to clipboard"); }
+    catch(e){ download("skywatch-climate.txt","text/plain",text); }
+  }
 }
 async function importJSON(input){
   const file = input.files && input.files[0];

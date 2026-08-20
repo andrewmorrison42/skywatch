@@ -219,6 +219,9 @@
   .grounding{margin-top:10px}
   .grounding li{list-style:none;padding:9px 0;border-bottom:1px solid var(--ridge);font-size:1.02rem}
   .grounding li:last-child{border-bottom:none}
+  .setup{margin:10px 0 0 18px;color:#AAB9CC;font-size:.9rem}
+  .setup li{padding:4px 0}
+  .setup b{color:var(--cloud);font-weight:600}
 </style>
 </head>
 <body>
@@ -474,6 +477,18 @@
   <div style="margin-top:28px">
     <button class="btn" onclick="savePlan()">Save the plan</button>
   </div>
+
+  <div class="listwrap" id="remindSetup">
+    <div class="eyebrow">Reminders</div>
+    <p class="sub">Skywatch can't send you a notification by itself — a page has no way to wake up once it's closed. It can hand the job to Reminders, but that takes one Shortcut, made once.</p>
+    <ol class="setup">
+      <li>Open <b>Shortcuts</b> → <b>+</b> → rename it to exactly <b>Skywatch check-in</b>.</li>
+      <li>Add <b>Adjust Date</b> — Current Date, <b>Add 4 Hours</b>.</li>
+      <li>Add <b>Add New Reminder</b>. Set its title to <b>Shortcut Input</b>, then under the extra options set the alert to the <b>Adjusted Date</b>.</li>
+      <li>In the Shortcut's own settings, turn off <b>Ask Before Running</b>.</li>
+    </ol>
+    <p class="note">Labels shift a little between iOS versions. The link finds the Shortcut by name, so if you rename it the button stops working — nothing breaks, it just won't find it. The calendar option underneath needs no setup and works anywhere.</p>
+  </div>
   <p class="note">Nothing here is shared or sent anywhere. It's stored on this device with your reports.</p>
 </section>
 
@@ -494,7 +509,8 @@
     <div class="eyebrow" id="quoteLead">Report filed. Weather noted.</div>
     <p class="quote" id="quoteText"></p>
     <div class="quote-by" id="quoteBy"></div>
-    <button class="btn" style="margin-top:34px" onclick="show('home')">Done</button>
+    <div id="remindRow"></div>
+    <button class="btn" style="margin-top:22px" onclick="show('home')">Done</button>
   </div>
 </section>
 
@@ -934,6 +950,73 @@ function renderSteer(){
   renderChipList("steerRow", opts, t=>steerHas("fControl",t), t=>steerToggle("fControl", t, renderSteer));
 }
 
+/* ---------- reminders ----------
+   There is no public URL scheme for creating an Apple Reminder, so the good path
+   goes through a Shortcut the user makes once (matched by name — see the storm
+   plan screen). Calendar sits underneath it and needs no setup at all. */
+const SHORTCUT = "Skywatch check-in";
+const APPLE = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+
+function remindWhen(e){
+  /* never schedule into the past — an entry finished later still gets a real gap */
+  return new Date(Math.max(new Date(e.ts).getTime() + FU_AFTER, Date.now() + 5*60000));
+}
+function remindTitle(e){
+  const line = (e.situation || e.thoughts || "").replace(/\s+/g," ").trim().slice(0,70);
+  return line ? `Where did it get to? — ${line}` : "Where did it get to?";
+}
+function remindShortcut(id){
+  const e = entries.find(x=>x.id === id); if (!e) return;
+  location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent(SHORTCUT) +
+                  "&input=text&text=" + encodeURIComponent(remindTitle(e));
+}
+function icsEsc(s){
+  return String(s||"").replace(/\\/g,"\\\\").replace(/([;,])/g,"\\$1").replace(/\r?\n/g,"\\n");
+}
+function icsStamp(d){
+  return new Date(d).toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+}
+function buildICS(e){
+  const at = remindWhen(e);
+  const title = remindTitle(e);
+  return [
+    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Skywatch//Weather//EN","CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    "UID:" + e.id + "@skywatch",
+    "DTSTAMP:" + icsStamp(new Date()),
+    "DTSTART:" + icsStamp(at),
+    "DURATION:PT5M",
+    "SUMMARY:" + icsEsc(title),
+    "DESCRIPTION:" + icsEsc("Open Skywatch and log where the weather got to."),
+    "BEGIN:VALARM","TRIGGER:-PT0M","ACTION:DISPLAY",
+    "DESCRIPTION:" + icsEsc(title),
+    "END:VALARM","END:VEVENT","END:VCALENDAR"
+  ].join("\r\n");
+}
+async function remindCalendar(id){
+  const e = entries.find(x=>x.id === id); if (!e) return;
+  const ics = buildICS(e);
+  try{
+    const file = new File([ics], "skywatch-check-in.ics", {type:"text/calendar"});
+    if (navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Skywatch check-in"});
+      return;
+    }
+  }catch(err){
+    if (err && err.name === "AbortError") return;   /* they closed the share sheet */
+  }
+  download("skywatch-check-in.ics","text/calendar",ics);
+}
+function renderRemind(elId, e){
+  const el = document.getElementById(elId); if (!el) return;
+  if (!e || typeof e.intensity !== "number" || e.followUp){ el.innerHTML = ""; return; }
+  const at = remindWhen(e).toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit",hour12:false});
+  el.innerHTML = APPLE
+    ? `<button class="btn ghost" style="margin-top:26px" onclick="remindShortcut('${e.id}')">Remind me at ${at}</button>
+       <button class="btn quiet" onclick="remindCalendar('${e.id}')">Add to calendar instead</button>`
+    : `<button class="btn ghost" style="margin-top:26px" onclick="remindCalendar('${e.id}')">Remind me at ${at}</button>`;
+}
+
 /* ---------- entry form ---------- */
 function resetForm(){
   ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
@@ -1026,6 +1109,7 @@ function showAfterglow(justSaved){
   document.getElementById("quoteText").textContent = "\u201C" + q.t + "\u201D";
   document.getElementById("quoteText").classList.toggle("echo", q.t.length > 160);
   document.getElementById("quoteBy").textContent = q.by;
+  renderRemind("remindRow", justSaved);
   show("afterglow");
 }
 /* your own words first; the borrowed ones only while there are none */
@@ -1315,7 +1399,8 @@ function openDetail(id){
        ${fu.note ? `<p style="margin-top:6px">${esc(fu.note)}</p>` : ""}
        <button class="btn quiet" style="text-align:left;padding:6px 0" onclick="openFollowUp('${e.id}')">Edit follow-up →</button></div>`
     : typeof e.intensity === "number"
-      ? `<div class="detail-block"><button class="btn ghost" onclick="openFollowUp('${e.id}')">Where did it get to?</button></div>`
+      ? `<div class="detail-block"><button class="btn ghost" onclick="openFollowUp('${e.id}')">Where did it get to?</button>
+         <button class="btn quiet" onclick="${APPLE?`remindShortcut('${e.id}')`:`remindCalendar('${e.id}')`}">Remind me to come back →</button></div>`
       : "";
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>

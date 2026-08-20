@@ -56,7 +56,9 @@
   .row .btn{flex:1}
 
   /* home */
-  header.app{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  header.app{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:14px}
+  .applinks{display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-top:3px;flex-shrink:0}
+  .applinks button,.applinks a{color:var(--mist);font-size:.9rem;font-weight:500;text-decoration:none;white-space:nowrap}
   .entry-card{
     background:var(--horizon);border:1px solid var(--ridge);border-radius:var(--radius);
     padding:14px 16px;margin-top:12px;width:100%;text-align:left;display:block;
@@ -108,6 +110,8 @@
     background:radial-gradient(circle at 50% 40%, #F6D794 0%, #EFC368 34%, rgba(239,195,104,.14) 68%, transparent 78%);
   }
   .quote{font-family:'Fraunces',Georgia,serif;font-size:1.45rem;line-height:1.4;color:#F4F7FB;font-weight:400}
+  /* your own words run longer than an aphorism — shrink rather than truncate them */
+  .quote.echo{font-size:1.15rem}
   .quote-by{margin-top:14px;color:#AAB9CC;font-size:.9rem;text-transform:uppercase;letter-spacing:.12em}
   textarea,input[type=text]{
     width:100%;background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;
@@ -168,6 +172,53 @@
   }
   .toast.show{opacity:1}
   .note{margin-top:14px;font-size:.8rem;color:var(--mist)}
+
+  /* focus ring for the added buttons */
+  button:focus-visible{outline:2px solid var(--sun);outline-offset:2px;border-radius:4px}
+
+  /* 0–10 scale — two rows so every target clears 44px */
+  .scale{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+  .scale button{
+    padding:12px 0;border-radius:11px;border:1px solid var(--ridge);
+    background:var(--horizon);color:var(--cloud);font-size:.95rem;min-height:46px;
+  }
+  .scale button.on{background:var(--sun);border-color:var(--sun);color:#26200F;font-weight:600}
+  .scale-ends{display:flex;justify-content:space-between;margin-top:6px;font-size:.78rem;color:var(--mist)}
+
+  /* flags on entry cards */
+  .flag{
+    display:inline-block;margin-top:8px;padding:3px 9px;border-radius:999px;
+    font-size:.72rem;font-weight:600;border:1px solid var(--sun);color:var(--sun);
+  }
+  .flag.done{border-color:var(--ok);color:var(--ok)}
+  .flag.part{border-color:var(--ridge);color:var(--mist)}
+
+  /* weathered rows */
+  .trace{border-left:2px solid var(--ridge);padding:2px 0 2px 14px;margin-top:20px}
+  .trace.down{border-left-color:var(--ok)}
+  .trace .sit{font-weight:600;margin:3px 0 4px}
+  .trace .move{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.82rem;color:var(--ok)}
+  .trace.flat .move{color:var(--mist)}
+  .trace .said{color:var(--mist);font-size:.9rem;margin-top:4px;white-space:pre-wrap}
+  .tally{font-family:'Fraunces',serif;font-size:1.6rem;margin:2px 0 2px}
+
+  /* the one quiet line of evidence */
+  .stat{
+    margin-top:20px;background:var(--horizon);border:1px solid var(--ridge);
+    border-radius:12px;padding:12px 14px;font-size:.9rem;color:var(--cloud);text-align:left;
+  }
+  .stat .then{color:var(--mist);margin-top:4px;display:block}
+  #breathe .stat{margin-top:22px}
+
+  /* storm plan */
+  .listwrap{margin-top:20px}
+  .listwrap textarea{min-height:92px}
+  .plan-read{background:var(--horizon);border:1px solid var(--ridge);border-radius:12px;padding:12px 14px;margin-top:8px}
+  .plan-read p{white-space:pre-wrap}
+  .plan-line{font-family:'Fraunces',serif;font-size:1.1rem;margin-top:2px}
+  .grounding{margin-top:10px}
+  .grounding li{list-style:none;padding:9px 0;border-bottom:1px solid var(--ridge);font-size:1.02rem}
+  .grounding li:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -180,12 +231,17 @@
       <div class="eyebrow">Skywatch</div>
       <h1>Weather reports</h1>
     </div>
-    <div style="text-align:right">
-      <button class="quiet btn" style="width:auto;padding:6px 0" onclick="show('reference')">Patterns</button><br>
-      <a class="backlink" href="climate.html" style="padding:0;color:#B48FD9">Climate →</a>
-    </div>
+    <nav class="applinks">
+      <button onclick="show('plan')">Storm plan</button>
+      <button onclick="show('reference')">Patterns</button>
+      <a href="climate.html" style="color:#B48FD9">Climate →</a>
+    </nav>
   </header>
   <p class="sub">You're the sky. These are the weather.</p>
+
+  <div id="checkCard"></div>
+  <div id="statCard"></div>
+  <div id="planCard"></div>
 
   <div id="entryList"></div>
 
@@ -197,7 +253,10 @@
   <div style="margin-top:26px" id="exportRow"></div>
 
   <div class="toolbar"><div class="inner">
-    <button class="btn" onclick="startBreathe()">New report</button>
+    <div class="row">
+      <button class="btn ghost" onclick="startBreathe('quick')">It's bad right now</button>
+      <button class="btn" onclick="startBreathe('full')">New report</button>
+    </div>
   </div></div>
 </section>
 
@@ -205,7 +264,7 @@
 <section class="screen" id="breathe">
   <div class="breathe-wrap">
     <div class="eyebrow">Before you write</div>
-    <h2>Five slow breaths</h2>
+    <h2 id="breathTitle">Five slow breaths</h2>
     <div class="skyfield">
       <div class="ring"></div>
       <div class="orb" id="orb"></div>
@@ -214,8 +273,51 @@
       </div>
     </div>
     <div class="breath-count" id="breathCount">Breath 1 of 5</div>
-    <p class="anchor-line">Look at the sky.<br>Don't get pulled into the weather.</p>
-    <button class="btn quiet" id="skipBtn" style="margin-top:18px;visibility:hidden" onclick="show('entry')">Skip to writing</button>
+    <p class="anchor-line" id="anchorLine">Look at the sky.<br>Don't get pulled into the weather.</p>
+    <div id="breatheStat"></div>
+    <button class="btn quiet" id="skipBtn" style="margin-top:18px;visibility:hidden" onclick="skipBreath()">Skip ahead</button>
+  </div>
+</section>
+
+<!-- ============ QUICK — the short path ============ -->
+<section class="screen" id="quick">
+  <button class="backlink" onclick="confirmLeaveQuick()">← Back</button>
+  <div class="eyebrow" id="quickStamp"></div>
+  <h2>Short report</h2>
+  <p class="sub">Four things. You can add the rest later, or not at all.</p>
+
+  <div class="field">
+    <label class="f">Come back into the room<small>Nothing to write here. Just find them.</small></label>
+    <ul class="grounding">
+      <li>Five things you can see.</li>
+      <li>Four you can feel touching you.</li>
+      <li>Three you can hear.</li>
+      <li>Two you can smell.</li>
+      <li>One breath, longer out than in.</li>
+    </ul>
+  </div>
+
+  <div class="field">
+    <label class="f">Where is it<small>Just the number. Nothing to justify.</small></label>
+    <div class="scale" id="quickScale" role="group" aria-label="Intensity, 0 to 10"></div>
+    <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fQuickLine">What's happening<small>One line. Not the report.</small></label>
+    <textarea id="fQuickLine"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f">One thing to do next<small>From the plan, or type it. One thing — not a list.</small></label>
+    <div class="chips" id="quickSteer" style="margin-bottom:8px"></div>
+    <textarea id="fQuickSteer"></textarea>
+  </div>
+
+  <div id="quickPlan"></div>
+
+  <div style="margin-top:28px">
+    <button class="btn" onclick="saveQuick()">Save and stop</button>
   </div>
 </section>
 
@@ -223,7 +325,14 @@
 <section class="screen" id="entry">
   <button class="backlink" onclick="confirmLeave()">← Back</button>
   <div class="eyebrow" id="entryStamp"></div>
-  <h2>Log the weather</h2>
+  <h2 id="entryTitle">Log the weather</h2>
+  <div id="entryStat"></div>
+
+  <div class="field">
+    <label class="f">How high is it<small>0 is fine. 10 is the worst it gets for you. Not what it means — just the number.</small></label>
+    <div class="scale" id="entryScale" role="group" aria-label="Intensity, 0 to 10"></div>
+    <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div>
+  </div>
 
   <div class="field">
     <label class="f" for="fSituation">Situation<small>What, where, who. Just the observable event.</small></label>
@@ -247,13 +356,19 @@
   </div>
 
   <div class="field">
-    <label class="f" for="fFacts">The facts<small>Only what's undisputable. Evidence, not opinion. Head, not heart.</small></label>
-    <textarea id="fFacts"></textarea>
+    <label class="f" for="fControl">In my control<small>Tap what's worked before. Add anything else. One is enough.</small></label>
+    <div class="chips" id="steerRow" style="margin-bottom:8px"></div>
+    <textarea id="fControl" class="tall"></textarea>
   </div>
 
   <div class="field">
-    <label class="f" for="fControl">In my control<small>What can I actually do? Direct energy only here.</small></label>
-    <textarea id="fControl" class="tall"></textarea>
+    <label class="f" for="fNotMine">Not mine to carry<small>What's in this that isn't yours. Naming it is the whole move — you don't have to do anything about it.</small></label>
+    <textarea id="fNotMine"></textarea>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fFacts">The facts<small>Only what's undisputable. Evidence, not opinion. Head, not heart.</small></label>
+    <textarea id="fFacts"></textarea>
   </div>
 
   <div class="field">
@@ -275,6 +390,93 @@
   </div>
 </section>
 
+<!-- ============ FOLLOW-UP ============ -->
+<section class="screen" id="followup">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Follow-up</div>
+  <h2>Where did it get to?</h2>
+  <div id="followupEcho"></div>
+
+  <div class="field">
+    <label class="f">Where is it now<small>Same scale. If it's still up, say so — a flat line is data too.</small></label>
+    <div class="scale" id="fuScale" role="group" aria-label="Intensity now, 0 to 10"></div>
+    <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div>
+  </div>
+
+  <div class="field">
+    <label class="f">What was happening when it moved<small>Tap what applies. "Nothing I did" is a real answer.</small></label>
+    <div class="chips" id="fuHelped"></div>
+  </div>
+
+  <div class="field">
+    <label class="f" for="fFuNote">Anything else<small>One line, if there is one.</small></label>
+    <textarea id="fFuNote"></textarea>
+  </div>
+
+  <div style="margin-top:28px">
+    <button class="btn" onclick="saveFollowUp()">Save follow-up</button>
+  </div>
+</section>
+
+<!-- ============ WEATHERED ============ -->
+<section class="screen" id="weathered">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Evidence</div>
+  <h2>Weathered</h2>
+  <p class="sub">These all ended. Not one of them ended because you won the argument with it.</p>
+  <div id="weatheredList"></div>
+</section>
+
+<!-- ============ STORM PLAN ============ -->
+<section class="screen" id="plan">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Written in fair weather</div>
+  <h2>Storm plan</h2>
+  <p class="sub">Write this when nothing is wrong. The version of you that reads it won't be able to think of any of it.</p>
+
+  <div id="mantraOffer"></div>
+
+  <div class="listwrap">
+    <label class="f" for="pLine">My line<small>One sentence you can say in your head. Short enough to hold at 8 out of 10.</small></label>
+    <textarea id="pLine" style="min-height:52px" placeholder="e.g. This is weather. I don't have to answer it today."></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pWorks">What actually works<small>One per line. Only things that have worked — not things that should. These are what comes back to you mid-storm.</small></label>
+    <textarea id="pWorks" placeholder="e.g. Go outside before I reply&#10;Text Sam&#10;Put it in writing tomorrow, not tonight&#10;Eat something"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pSigns">The first signs<small>One per line. What shows up before you'd call it a storm — other people usually see these before you do.</small></label>
+    <textarea id="pSigns" placeholder="e.g. Rereading the same message&#10;Cancelling things&#10;Talking faster&#10;Not eating"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pWorse">What makes it worse<small>One per line. The moves that feel like relief and aren't.</small></label>
+    <textarea id="pWorse" placeholder="e.g. Rereading the thread&#10;Drafting the reply at 11pm&#10;Scrolling&#10;Drinking on it"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pNoDecide">Not while the weather is up<small>One per line. Not forever — just not today. Quitting, sending, telling, ending.</small></label>
+    <textarea id="pNoDecide" placeholder="e.g. Don't resign&#10;Don't send anything after 9pm&#10;Don't end anything&#10;Don't decide what I'm worth"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pTell">Who I tell<small>One per line. Names, not "someone".</small></label>
+    <textarea id="pTell" style="min-height:72px" placeholder="e.g. Sam&#10;Mum&#10;Dr Patel"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pOpener">The opening line<small>The exact words you send. Written now, so there's nothing to compose later.</small></label>
+    <textarea id="pOpener" style="min-height:52px" placeholder="e.g. Bad head today, not after advice — can you talk for ten minutes?"></textarea>
+  </div>
+
+  <div style="margin-top:28px">
+    <button class="btn" onclick="savePlan()">Save the plan</button>
+  </div>
+  <p class="note">Nothing here is shared or sent anywhere. It's stored on this device with your reports.</p>
+</section>
+
 <!-- ============ REFERENCE ============ -->
 <section class="screen" id="reference">
   <button class="backlink" onclick="show('home')">← Back</button>
@@ -289,7 +491,7 @@
 <section class="screen" id="afterglow">
   <div class="glow-wrap">
     <div class="glow-orb"></div>
-    <div class="eyebrow">Report filed. Weather noted.</div>
+    <div class="eyebrow" id="quoteLead">Report filed. Weather noted.</div>
     <p class="quote" id="quoteText"></p>
     <div class="quote-by" id="quoteBy"></div>
     <button class="btn" style="margin-top:34px" onclick="show('home')">Done</button>
@@ -385,8 +587,10 @@ function pickQuote(){
 }
 
 /* ---------- storage adapter: window.storage → localStorage → memory ---------- */
-const KEY = "skywatch-entries";
-let memStore = null;
+const KEY  = "skywatch-entries";
+const PKEY = "skywatch-plan";
+const MKEY = "skywatch-mantra";   /* written by climate.html — read here, never written */
+let memStore = {};
 const store = {
   mode: "memory",
   localOK(){
@@ -405,31 +609,32 @@ const store = {
     }
     this.mode = this.localOK() ? "local" : "memory";
   },
-  async load(){
+  async load(key, fallback){
+    const miss = fallback === undefined ? [] : fallback;
     try{
       if (this.mode === "claude"){
-        try{ const r = await window.storage.get(KEY); return r ? JSON.parse(r.value) : []; }
+        try{ const r = await window.storage.get(key); if (r) return JSON.parse(r.value); }
         catch(e){ /* key may not exist yet */ }
       }
       if (this.mode === "local" || this.mode === "claude"){
-        const v = this.localOK() ? localStorage.getItem(KEY) : null;
-        if (v) return JSON.parse(v);
+        const v = this.localOK() ? localStorage.getItem(key) : null;
+        if (v != null) return JSON.parse(v);
       }
-      return memStore || [];
-    }catch(e){ console.error(e); return memStore || []; }
+      return key in memStore ? memStore[key] : miss;
+    }catch(e){ console.error(e); return key in memStore ? memStore[key] : miss; }
   },
-  async save(entries){
-    memStore = entries;
-    const json = JSON.stringify(entries);
+  async save(key, data){
+    memStore[key] = data;
+    const json = JSON.stringify(data);
     if (this.mode === "claude"){
-      try { await window.storage.set(KEY, json); return; }
+      try { await window.storage.set(key, json); return; }
       catch(e){
         console.warn("Artifact storage write failed, falling back:", e);
         this.mode = this.localOK() ? "local" : "memory";
       }
     }
     if (this.mode === "local"){
-      try { localStorage.setItem(KEY, json); return; }
+      try { localStorage.setItem(key, json); return; }
       catch(e){ console.error(e); this.mode = "memory"; }
     }
     if (this.mode === "memory"){
@@ -438,11 +643,96 @@ const store = {
   }
 };
 
+/* ---------- what was happening when it moved ---------- */
+const HELPED = ["Walked","Ate something","Slept","Told someone","Left the room",
+                "Went back to work","Waited it out","Nothing I did — it passed"];
+
+/* ---------- closers, in place of a quote when there's nothing of yours yet ---------- */
+const CLOSERS = [
+  "Filed. It doesn't need a verdict tonight.",
+  "You wrote it down instead of arguing with it. That was the whole job.",
+  "Nothing to fix. Something to observe.",
+  "That's one more of these on the record. They add up in your favour.",
+  "The weather made a claim. It still has to wait for the evidence.",
+  "You gave yourself the same terms you'd give anyone else.",
+];
+
 /* ---------- state ---------- */
 let entries = [];
 let selectedPatterns = new Set();
 let currentId = null;
 let breatheTimer = null;
+let plan = null;
+let climateLine = "";
+let flowMode = "full";
+let editingId = null;
+let entryIntensity = null;
+let quickIntensity = null;
+let fuIntensity = null;
+let fuHelped = new Set();
+let fuId = null;
+
+/* ---------- storm plan ---------- */
+const PLAN_LISTS = ["signs","works","worse","noDecide","tell"];
+function normalizePlan(raw){
+  const p = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+  const out = { v:1, updated: typeof p.updated === "string" ? p.updated : "",
+                opener: typeof p.opener === "string" ? p.opener : "",
+                line:   typeof p.line   === "string" ? p.line   : "" };
+  PLAN_LISTS.forEach(k=>{
+    out[k] = Array.isArray(p[k]) ? p[k].filter(x=>typeof x === "string" && x.trim()).map(x=>x.trim()) : [];
+  });
+  return out;
+}
+function planEmpty(p){
+  return !p.line.trim() && !p.opener.trim() && PLAN_LISTS.every(k=>!p[k].length);
+}
+function planLines(s){
+  return String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+}
+function renderPlan(){
+  document.getElementById("pLine").value     = plan.line;
+  document.getElementById("pOpener").value   = plan.opener;
+  PLAN_LISTS.forEach(k=>{
+    document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value = plan[k].join("\n");
+  });
+  /* one-way, opt-in prefill from climate's line — never written back */
+  const offer = document.getElementById("mantraOffer");
+  offer.innerHTML = (climateLine && !plan.line.trim())
+    ? `<div class="stat">Climate has a line saved: “${esc(climateLine)}”
+       <button class="btn quiet" style="text-align:left;padding:8px 0 0" onclick="useClimateLine()">Use it here →</button></div>`
+    : "";
+}
+function useClimateLine(){
+  document.getElementById("pLine").value = climateLine;
+  document.getElementById("mantraOffer").innerHTML = "";
+}
+async function savePlan(){
+  plan.line   = document.getElementById("pLine").value.trim();
+  plan.opener = document.getElementById("pOpener").value.trim();
+  PLAN_LISTS.forEach(k=>{
+    plan[k] = planLines(document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value);
+  });
+  plan.updated = new Date().toISOString();
+  await store.save(PKEY, plan);
+  toast("Plan saved");
+  show("home");
+}
+function renderPlanCard(){
+  const el = document.getElementById("planCard");
+  if (planEmpty(plan)){
+    el.innerHTML = `<button class="entry-card" onclick="show('plan')">
+      <div class="eyebrow">Storm plan</div>
+      <div class="sit">Not written yet</div>
+      <div class="sub">The instructions are easier to write than to think of. Write them while it's calm.</div></button>`;
+    return;
+  }
+  const n = plan.works.length;
+  el.innerHTML = `<button class="entry-card" onclick="show('plan')">
+    <div class="eyebrow">Storm plan</div>
+    ${plan.line ? `<div class="plan-line">${esc(plan.line)}</div>` : ""}
+    <div class="sub" style="margin-top:4px">${n ? `${n} move${n===1?"":"s"} that have worked before.` : "No moves listed yet."} Tap to edit.</div></button>`;
+}
 
 /* ---------- nav ---------- */
 function show(id){
@@ -451,27 +741,68 @@ function show(id){
   document.getElementById(id).classList.add("active");
   window.scrollTo(0,0);
   if (id === "home") renderHome();
+  if (id === "plan") renderPlan();
+  if (id === "weathered") renderWeathered();
+}
+
+/* ---------- shared controls ---------- */
+function renderScale(elId, current, onPick){
+  const row = document.getElementById(elId);
+  row.innerHTML = "";
+  for (let i=0; i<=10; i++){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = i;
+    b.className = current === i ? "on" : "";
+    b.setAttribute("aria-label", `${i} out of 10`);
+    b.setAttribute("aria-pressed", current === i);
+    b.onclick = ()=>onPick(i);
+    row.appendChild(b);
+  }
+}
+function renderChipList(elId, items, isOn, onTap){
+  const row = document.getElementById(elId);
+  row.innerHTML = "";
+  items.forEach(t=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip" + (isOn(t) ? " on" : "");
+    b.textContent = t;
+    b.setAttribute("aria-pressed", isOn(t));
+    b.onclick = ()=>onTap(t);
+    row.appendChild(b);
+  });
 }
 
 /* ---------- breathe gate ---------- */
-function startBreathe(){
-  resetForm();
-  document.getElementById("entryStamp").textContent = fmt(new Date());
+const WORDS = {full:"Five", quick:"Three"};
+function startBreathe(mode){
+  flowMode = mode === "quick" ? "quick" : "full";
+  editingId = null;
+  if (flowMode === "quick") resetQuick(); else resetForm();
+  document.getElementById(flowMode === "quick" ? "quickStamp" : "entryStamp").textContent = fmt(new Date());
+  document.getElementById("breathTitle").textContent = `${WORDS[flowMode]} slow breaths`;
+  /* your own line, if you wrote one, in place of the default anchor */
+  document.getElementById("anchorLine").innerHTML = plan.line
+    ? esc(plan.line)
+    : "Look at the sky.<br>Don't get pulled into the weather.";
+  document.getElementById("breatheStat").innerHTML = renderStat(null);
   show("breathe");
   runBreaths();
 }
+function skipBreath(){ show(flowMode === "quick" ? "quick" : "entry"); }
 function runBreaths(){
   const orb = document.getElementById("orb");
   const word = document.getElementById("breathWord");
   const count = document.getElementById("breathCount");
   const skip = document.getElementById("skipBtn");
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const total = flowMode === "quick" ? 3 : 5;
   let breath = 1;
-  const IN = reduced ? 4000 : 4000, OUT = reduced ? 6000 : 6000;
+  const IN = 4000, OUT = 6000;
 
   function cycle(){
-    if (breath > 5){ show("entry"); return; }
-    count.textContent = `Breath ${breath} of 5`;
+    if (breath > total){ skipBreath(); return; }
+    count.textContent = `Breath ${breath} of ${total}`;
     word.textContent = "Breathe in";
     orb.classList.add("in");
     breatheTimer = setTimeout(()=>{
@@ -479,12 +810,13 @@ function runBreaths(){
       orb.classList.remove("in");
       breatheTimer = setTimeout(()=>{
         breath++;
-        if (breath === 2) skip.style.visibility = "visible";
+        /* on the short path the way out is available immediately */
+        if (breath === 2 || flowMode === "quick") skip.style.visibility = "visible";
         cycle();
       }, OUT);
     }, IN);
   }
-  skip.style.visibility = "hidden";
+  skip.style.visibility = flowMode === "quick" ? "visible" : "hidden";
   cycle();
 }
 function clearBreathe(){
@@ -492,12 +824,135 @@ function clearBreathe(){
   document.getElementById("orb").classList.remove("in");
 }
 
+/* ---------- the evidence engine ---------- */
+const H = 3600000;
+const FU_AFTER  = 4*H;    /* don't ask while they're probably still in it */
+const FU_WINDOW = 72*H;   /* and stop asking after three days */
+const HIGH       = 7;
+const MIN_PAIRS  = 3;     /* below this, say nothing at all */
+const MIN_TIME   = 4;     /* a median duration needs this many */
+const MIN_HELPED = 3;     /* a chip must recur this often to be named */
+
+function needsCheck(e){
+  if (typeof e.intensity !== "number" || e.followUp) return false;
+  const age = Date.now() - new Date(e.ts).getTime();
+  return age > FU_AFTER && age < FU_WINDOW;
+}
+function settledPairs(){
+  return entries.filter(e => typeof e.intensity === "number"
+                          && e.followUp && typeof e.followUp.intensity === "number");
+}
+function cameDown(e){ return e.followUp.intensity <= e.intensity - 2 || e.followUp.intensity <= 3; }
+function durMs(e){ return new Date(e.followUp.ts) - new Date(e.ts); }
+function median(ns){
+  const s = [...ns].sort((a,b)=>a-b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+}
+function fmtDur(ms){
+  const h = Math.floor(ms/H), m = Math.round((ms % H)/60000);
+  return h ? `${h}h ${String(m).padStart(2,"0")}m` : `${m}m`;
+}
+function ago(ts){
+  const ms = Date.now() - new Date(ts).getTime();
+  const h = Math.floor(ms/H);
+  if (h < 1) return "under an hour ago";
+  if (h < 24) return `${h} hour${h===1?"":"s"} ago`;
+  const d = Math.round(h/24);
+  return `${d} day${d===1?"":"s"} ago`;
+}
+function stormStats(at){
+  const pool = settledPairs();
+  if (pool.length < MIN_PAIRS) return null;
+  const band = (at != null && at >= HIGH) ? pool.filter(e => e.intensity >= HIGH) : [];
+  const use  = band.length >= MIN_PAIRS ? band : pool;
+  const down = use.filter(cameDown);
+  const tally = new Map();
+  down.forEach(e => (e.followUp.helped || []).forEach(h => tally.set(h, (tally.get(h)||0) + 1)));
+  return {
+    n: use.length,
+    down: down.length,
+    high: use === band,
+    medianMs: down.length >= MIN_TIME ? median(down.map(durMs)) : null,
+    helped: [...tally.entries()].filter(([,c]) => c >= MIN_HELPED)
+              .sort((a,b) => b[1] - a[1]).slice(0,2).map(([t]) => t)
+  };
+}
+/* The crisis surface is edited: with nothing yet come down, a count would land as
+   proof it never does. The archive stays unedited — see the Weathered screen. */
+function renderStat(at){
+  const s = stormStats(at);
+  if (!s || !s.down) return "";
+  const scope = s.high ? `you logged at ${HIGH} or higher` : "you've followed up on";
+  const head = s.down === s.n
+    ? `All ${s.n} of the last ${s.n} storms ${scope} came down.`
+    : `${s.down} of the last ${s.n} storms ${scope} came down.`;
+  const time = s.medianMs ? ` Middle time: ${fmtDur(s.medianMs)}.` : "";
+  const then = s.helped.length
+    ? `<span class="then">Most often, what was happening: ${esc(s.helped.join(" · "))}.</span>`
+    : "";
+  return `<div class="stat">${head}${time}${then}</div>`;
+}
+
+/* ---------- steer: your own moves, handed back ---------- */
+function norm(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim(); }
+/* past 'control' answers are paragraphs — split them before counting, or nothing ever repeats */
+function steerLines(s){
+  return String(s||"").split(/[\n;]+|\.\s+/).map(x=>x.trim().replace(/\.$/,""))
+    .filter(x=>x.length >= 3 && x.length <= 48);
+}
+function steerOptions(){
+  const fromPlan = plan.works.slice(0,8);
+  const counts = new Map();
+  entries.forEach(e=>steerLines(e.control).forEach(l=>{
+    const k = norm(l); if (!k) return;
+    const c = counts.get(k) || {t:l, n:0}; c.n++; counts.set(k, c);
+  }));
+  const seen = new Set(fromPlan.map(norm));
+  const learned = [...counts.values()].filter(c=>c.n >= 2 && !seen.has(norm(c.t)))
+                    .sort((a,b)=>b.n - a.n).map(c=>c.t);
+  return [...fromPlan, ...learned].slice(0,10);
+}
+function steerHas(box, t){
+  return steerLines(document.getElementById(box).value).some(l=>norm(l) === norm(t));
+}
+function steerToggle(box, t, redraw){
+  const el = document.getElementById(box);
+  const lines = el.value.split("\n");
+  const at = lines.findIndex(l=>norm(l) === norm(t));
+  if (at >= 0) lines.splice(at,1); else lines.push(t);
+  el.value = lines.filter((l,i)=>l.trim() || i < lines.length-1).join("\n").replace(/^\n+/,"");
+  redraw();
+}
+function renderSteer(){
+  const opts = steerOptions();
+  const row = document.getElementById("steerRow");
+  if (!opts.length){
+    row.innerHTML = `<button class="btn quiet" style="text-align:left;padding:6px 0"
+      onclick="show('plan')">Nothing to hand you yet — write what works while it's calm →</button>`;
+    return;
+  }
+  renderChipList("steerRow", opts, t=>steerHas("fControl",t), t=>steerToggle("fControl", t, renderSteer));
+}
+
 /* ---------- entry form ---------- */
 function resetForm(){
-  ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend"].forEach(i=>document.getElementById(i).value="");
+  ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
+    .forEach(i=>document.getElementById(i).value="");
   selectedPatterns = new Set();
+  entryIntensity = null;
+  document.getElementById("entryTitle").textContent = "Log the weather";
+  drawEntryScale();
   renderChips();
+  renderSteer();
   document.getElementById("chipInfo").classList.remove("show");
+}
+function drawEntryScale(){
+  renderScale("entryScale", entryIntensity, i=>{
+    entryIntensity = (entryIntensity === i) ? null : i;
+    drawEntryScale();
+  });
+  /* the band narrows to storms this high once you've said how high it is */
+  document.getElementById("entryStat").innerHTML = renderStat(entryIntensity);
 }
 function renderChips(){
   const row = document.getElementById("chipRow");
@@ -531,16 +986,15 @@ function showChipInfo(p){
   el.classList.add("show");
 }
 function confirmLeave(){
-  const dirty = ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend"]
-    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size;
-  if (!dirty || confirm("Discard this report?")) show("home");
+  const dirty = ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
+    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size || entryIntensity !== null;
+  const ask = editingId ? "Leave the rest for later?" : "Discard this report?";
+  if (!dirty || confirm(ask)) show("home");
 }
 async function saveEntry(){
   const get = i => document.getElementById(i).value.trim();
   if (!get("fThoughts") && !get("fSituation")){ toast("Write something first"); return; }
-  const e = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-    ts: new Date().toISOString(),
+  const fields = {
     situation: get("fSituation"),
     thoughts: get("fThoughts"),
     feeling: get("fFeeling"),
@@ -548,19 +1002,173 @@ async function saveEntry(){
     facts: get("fFacts"),
     control: get("fControl"),
     friend: get("fFriend"),
+    notMine: get("fNotMine"),
+    intensity: entryIntensity,
   };
-  entries.unshift(e);
-  await store.save(entries);
-  const q = pickQuote();
+  let e;
+  if (editingId){
+    e = entries.find(x=>x.id === editingId);
+    Object.assign(e, fields, { partial:false, updated:new Date().toISOString() });
+    editingId = null;
+  } else {
+    e = Object.assign({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      ts: new Date().toISOString(),
+    }, fields);
+    entries.unshift(e);
+  }
+  await store.save(KEY, entries);
+  showAfterglow(e);
+}
+function showAfterglow(justSaved){
+  const q = pickEcho(justSaved);
+  document.getElementById("quoteLead").textContent = q.lead;
   document.getElementById("quoteText").textContent = "\u201C" + q.t + "\u201D";
+  document.getElementById("quoteText").classList.toggle("echo", q.t.length > 160);
   document.getElementById("quoteBy").textContent = q.by;
   show("afterglow");
+}
+/* your own words first; the borrowed ones only while there are none */
+function pickEcho(justSaved){
+  const pats = new Set(justSaved.patterns || []);
+  const pool = entries.filter(x=>x.id !== justSaved.id && (x.friend||"").trim());
+  const same = pool.find(x=>(x.patterns||[]).some(p=>pats.has(p)));
+  const hit = same || pool[0];
+  if (hit){
+    const p = (hit.patterns||[]).find(x=>pats.has(x));
+    return { t: hit.friend, by: `You \u2014 ${fmtDate(hit.ts)}`,
+             lead: p ? `What you wrote last time ${pname(p).toLowerCase()} showed up` : "What you wrote before" };
+  }
+  if (plan.line) return { t: plan.line, by: "Your line", lead: "From the plan" };
+  const c = CLOSERS[Math.floor(Math.random()*CLOSERS.length)];
+  return { t: c, by: "", lead: "Report filed. Weather noted." };
+}
+
+/* ---------- the short path ---------- */
+function resetQuick(){
+  ["fQuickLine","fQuickSteer"].forEach(i=>document.getElementById(i).value="");
+  quickIntensity = null;
+  drawQuickScale();
+  renderQuickSteer();
+  const bits = [];
+  if (plan.noDecide.length) bits.push(`<div class="detail-block"><div class="eyebrow">Not today</div>
+    <p>${esc(plan.noDecide.join("\n"))}</p></div>`);
+  if (plan.opener) bits.push(`<div class="detail-block"><div class="eyebrow">The message</div>
+    <p>${esc(plan.opener)}</p>
+    <button class="btn quiet" style="text-align:left;padding:6px 0" onclick="copyOpener()">Copy it \u2192</button></div>`);
+  if (plan.tell.length) bits.push(`<div class="detail-block"><div class="eyebrow">Who you tell</div>
+    <p>${esc(plan.tell.join(" \u00B7 "))}</p></div>`);
+  document.getElementById("quickPlan").innerHTML = bits.join("");
+}
+function drawQuickScale(){
+  renderScale("quickScale", quickIntensity, i=>{
+    quickIntensity = (quickIntensity === i) ? null : i;
+    drawQuickScale();
+  });
+}
+function renderQuickSteer(){
+  const opts = steerOptions();
+  const row = document.getElementById("quickSteer");
+  if (!opts.length){
+    row.innerHTML = `<button class="btn quiet" style="text-align:left;padding:6px 0"
+      onclick="show('plan')">Nothing to hand you yet \u2014 write what works while it's calm \u2192</button>`;
+    return;
+  }
+  renderChipList("quickSteer", opts, t=>steerHas("fQuickSteer",t),
+                 t=>steerToggle("fQuickSteer", t, renderQuickSteer));
+}
+async function copyOpener(){
+  try{ await navigator.clipboard.writeText(plan.opener); toast("Copied"); }
+  catch(e){ toast("Couldn't copy \u2014 it's above"); }
+}
+function confirmLeaveQuick(){
+  const dirty = ["fQuickLine","fQuickSteer"].some(i=>document.getElementById(i).value.trim())
+                || quickIntensity !== null;
+  if (!dirty || confirm("Discard this?")) show("home");
+}
+async function saveQuick(){
+  const line = document.getElementById("fQuickLine").value.trim();
+  const steer = document.getElementById("fQuickSteer").value.trim();
+  if (!line && quickIntensity === null){ toast("A number or a line \u2014 either will do"); return; }
+  const e = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    situation:"", thoughts: line, feeling:"", patterns:[], facts:"",
+    control: steer, friend:"", notMine:"",
+    intensity: quickIntensity,
+    partial: true,
+  };
+  entries.unshift(e);
+  await store.save(KEY, entries);
+  showAfterglow(e);
+}
+function resumeEntry(id){
+  const e = entries.find(x=>x.id === id); if (!e) return;
+  resetForm();
+  editingId = id;
+  document.getElementById("entryTitle").textContent = "Add the rest";
+  document.getElementById("entryStamp").textContent = fmt(e.ts);
+  const set = (i,v)=>document.getElementById(i).value = v || "";
+  set("fSituation", e.situation); set("fThoughts", e.thoughts); set("fFeeling", e.feeling);
+  set("fFacts", e.facts); set("fControl", e.control); set("fFriend", e.friend);
+  set("fNotMine", e.notMine);
+  selectedPatterns = new Set(e.patterns || []);
+  entryIntensity = typeof e.intensity === "number" ? e.intensity : null;
+  drawEntryScale();
+  renderChips();
+  renderSteer();
+  show("entry");
+}
+
+/* ---------- follow-up ---------- */
+function openFollowUp(id){
+  const e = entries.find(x=>x.id === id); if (!e) return;
+  fuId = id;
+  fuIntensity = e.followUp ? e.followUp.intensity : null;
+  fuHelped = new Set(e.followUp ? (e.followUp.helped || []) : []);
+  document.getElementById("fFuNote").value = e.followUp ? (e.followUp.note || "") : "";
+  document.getElementById("followupEcho").innerHTML = `<div class="entry-card">
+    <div class="stamp">${fmt(e.ts)}</div>
+    <div class="sit">${esc(e.situation || e.thoughts || "No line written")}</div>
+    <div class="sub">You logged this at ${e.intensity}, ${ago(e.ts)}.</div></div>`;
+  drawFuScale();
+  renderFuHelped();
+  show("followup");
+}
+function drawFuScale(){
+  renderScale("fuScale", fuIntensity, i=>{ fuIntensity = i; drawFuScale(); });
+}
+function renderFuHelped(){
+  const e = entries.find(x=>x.id === fuId);
+  const used = new Set();
+  entries.forEach(x=>(x.followUp && x.followUp.helped || []).forEach(h=>used.add(h)));
+  const opts = [...new Set([...plan.works.slice(0,6), ...steerLines(e && e.control), ...HELPED, ...used])];
+  renderChipList("fuHelped", opts, t=>fuHelped.has(t), t=>{
+    fuHelped.has(t) ? fuHelped.delete(t) : fuHelped.add(t);
+    renderFuHelped();
+  });
+}
+async function saveFollowUp(){
+  if (fuIntensity === null){ toast("Give it a number first"); return; }
+  const e = entries.find(x=>x.id === fuId); if (!e) return;
+  e.followUp = {
+    ts: new Date().toISOString(),
+    intensity: fuIntensity,
+    helped: [...fuHelped],
+    note: document.getElementById("fFuNote").value.trim(),
+  };
+  await store.save(KEY, entries);
+  toast("Follow-up saved");
+  show("home");
 }
 
 /* ---------- home ---------- */
 function fmt(d){
   d = new Date(d);
   return d.toLocaleString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false});
+}
+function fmtDate(d){
+  return new Date(d).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
 }
 function pname(id){ const p = PATTERNS.find(x=>x.id===id); return p ? p.name : id; }
 function renderHome(){
@@ -570,14 +1178,24 @@ function renderHome(){
   list.innerHTML = "";
   empty.style.display = entries.length ? "none" : "block";
   exportRow.innerHTML = "";
+  renderCheckCard();
+  renderStatCard();
+  renderPlanCard();
   entries.forEach(e=>{
     const b = document.createElement("button");
     b.className = "entry-card";
     b.onclick = ()=>openDetail(e.id);
+    /* the arrow only appears once there's a second number — a column of bare
+       severity scores would make the scroll worse, not better */
+    const flag = e.followUp
+      ? `<span class="flag done">${e.intensity} → ${e.followUp.intensity}</span>`
+      : needsCheck(e) ? `<span class="flag">Where did it get to?</span>`
+      : e.partial ? `<span class="flag part">Short report</span>` : "";
     b.innerHTML = `
       <div class="stamp">${fmt(e.ts)}</div>
-      <div class="sit">${esc(e.situation || e.thoughts)}</div>
-      <div class="chips">${e.patterns.map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div>`;
+      <div class="sit">${esc(e.situation || e.thoughts || "No line written")}</div>
+      <div class="chips">${(e.patterns||[]).map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div>
+      ${flag}`;
     list.appendChild(b);
   });
   if (entries.length){
@@ -594,6 +1212,57 @@ function renderHome(){
       <button class="btn quiet" onclick="document.getElementById('importFile').click()">Restore from JSON backup</button>`;
   }
 }
+/* one prompt, for the oldest storm still open — never one card per entry */
+function renderCheckCard(){
+  const el = document.getElementById("checkCard");
+  const due = entries.filter(needsCheck);
+  if (!due.length){ el.innerHTML = ""; return; }
+  const e = due[due.length - 1];
+  el.innerHTML = `<button class="entry-card" style="border-color:var(--sun)" onclick="openFollowUp('${e.id}')">
+    <div class="eyebrow" style="color:var(--sun)">Open storm</div>
+    <div class="sit">${esc(e.situation || e.thoughts || "No line written")}</div>
+    <div class="sub">Logged at ${e.intensity}, ${ago(e.ts)}. Where is it now?</div></button>`;
+}
+function renderStatCard(){
+  const el = document.getElementById("statCard");
+  const pairs = settledPairs();
+  const anyRated = entries.some(e=>typeof e.intensity === "number");
+  if (!pairs.length){
+    el.innerHTML = anyRated
+      ? `<div class="entry-card"><div class="eyebrow">Weathered</div>
+         <div class="sit">Nothing settled yet</div>
+         <div class="sub">Log where one of them got to and the record starts arguing back.</div></div>`
+      : "";
+    return;
+  }
+  const down = pairs.filter(cameDown).length;
+  el.innerHTML = `<button class="entry-card" onclick="show('weathered')">
+    <div class="eyebrow">Weathered</div>
+    <div class="tally">${down} of ${pairs.length}</div>
+    <div class="sub">storms you logged came down. Tap to read what was happening when they did.</div></button>`;
+}
+function renderWeathered(){
+  const pairs = settledPairs();
+  const el = document.getElementById("weatheredList");
+  if (!pairs.length){
+    el.innerHTML = `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
+    return;
+  }
+  /* chronological, both kinds, nothing hidden — the verdict is not the organising principle */
+  const row = e=>{
+    const d = cameDown(e);
+    return `<div class="trace ${d?"down":"flat"}">
+      <div class="stamp">${fmt(e.ts)}</div>
+      <div class="sit">${esc(e.situation || e.thoughts || "No line written")}</div>
+      <div class="move">${e.intensity} → ${e.followUp.intensity} · ${fmtDur(durMs(e))}</div>
+      ${(e.followUp.helped||[]).length ? `<div class="chips" style="margin-top:6px">${
+        e.followUp.helped.map(h=>`<span class="chip mini">${esc(h)}</span>`).join("")}</div>` : ""}
+      ${e.followUp.note ? `<div class="said">${esc(e.followUp.note)}</div>` : ""}
+    </div>`;
+  };
+  el.innerHTML = pairs.map(row).join("");
+}
+
 async function importJSON(input){
   const file = input.files && input.files[0];
   input.value = "";
@@ -601,16 +1270,29 @@ async function importJSON(input){
   try{
     const text = await file.text();
     const data = JSON.parse(text);
-    if (!Array.isArray(data)) throw new Error("Not a Skywatch backup");
+    /* a bare array is the pre-plan export shape — still accepted */
+    const inc = Array.isArray(data) ? {entries:data} : data;
+    if (!inc || !Array.isArray(inc.entries)) throw new Error("Not a Skywatch backup");
     const have = new Set(entries.map(e=>e.id));
     let added = 0;
-    data.forEach(e=>{
+    inc.entries.forEach(e=>{
       if (e && e.ts && !have.has(e.id)){ entries.push(e); added++; }
     });
     entries.sort((a,b)=> new Date(b.ts) - new Date(a.ts));
-    await store.save(entries);
+    await store.save(KEY, entries);
+    /* only adopt a backed-up plan when there's nothing here to lose */
+    let planNote = "";
+    if (inc.plan){
+      const incoming = normalizePlan(inc.plan);
+      if (!planEmpty(incoming) && planEmpty(plan)){
+        plan = incoming;
+        await store.save(PKEY, plan);
+      } else if (!planEmpty(incoming)){
+        planNote = " Your storm plan was left as it is.";
+      }
+    }
     renderHome();
-    toast(added ? `Imported ${added} report${added===1?"":"s"}` : "Nothing new to import");
+    toast((added ? `Imported ${added} report${added===1?"":"s"}.` : "Nothing new to import.") + planNote);
   }catch(e){
     console.error(e);
     toast("Couldn't read that file");
@@ -623,36 +1305,65 @@ function openDetail(id){
   const e = entries.find(x=>x.id===id); if(!e) return;
   currentId = id;
   const blk = (label, val)=> val ? `<div class="detail-block"><div class="eyebrow">${label}</div><p>${esc(val)}</p></div>` : "";
+  const fu = e.followUp;
+  const after = fu
+    ? `<div class="detail-block"><div class="eyebrow">Where it got to</div>
+       <div class="move" style="font-family:ui-monospace,Menlo,monospace;color:${cameDown(e)?"var(--ok)":"var(--mist)"}">
+         ${e.intensity} → ${fu.intensity} · ${fmtDur(durMs(e))}</div>
+       ${(fu.helped||[]).length ? `<div class="chips" style="margin-top:6px">${
+          fu.helped.map(h=>`<span class="chip mini">${esc(h)}</span>`).join("")}</div>` : ""}
+       ${fu.note ? `<p style="margin-top:6px">${esc(fu.note)}</p>` : ""}
+       <button class="btn quiet" style="text-align:left;padding:6px 0" onclick="openFollowUp('${e.id}')">Edit follow-up →</button></div>`
+    : typeof e.intensity === "number"
+      ? `<div class="detail-block"><button class="btn ghost" onclick="openFollowUp('${e.id}')">Where did it get to?</button></div>`
+      : "";
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>
+    ${typeof e.intensity === "number" ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10</div>` : ""}
     ${blk("Situation", e.situation)}
     ${blk("The thoughts", e.thoughts)}
     ${blk("The weather in the body", e.feeling)}
-    ${e.patterns.length ? `<div class="detail-block"><div class="eyebrow">The story</div><div class="chips" style="margin-top:6px">${e.patterns.map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div></div>` : ""}
-    ${blk("The facts", e.facts)}
+    ${(e.patterns||[]).length ? `<div class="detail-block"><div class="eyebrow">The story</div><div class="chips" style="margin-top:6px">${e.patterns.map(p=>`<span class="chip mini">${pname(p)}</span>`).join("")}</div></div>` : ""}
     ${blk("In my control", e.control)}
-    ${blk("To a friend", e.friend)}`;
+    ${blk("Not mine to carry", e.notMine)}
+    ${blk("The facts", e.facts)}
+    ${blk("To a friend", e.friend)}
+    ${after}
+    ${e.partial ? `<div class="detail-block"><button class="btn ghost" onclick="resumeEntry('${e.id}')">Add the rest</button></div>` : ""}`;
   show("detail");
 }
 async function deleteCurrent(){
   if (!confirm("Delete this report? This can't be undone.")) return;
   entries = entries.filter(x=>x.id!==currentId);
-  await store.save(entries);
+  await store.save(KEY, entries);
   show("home");
 }
 
 /* ---------- export ---------- */
 function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
 function exportCSV(){
-  const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend"];
-  const rows = entries.map(e=>[e.ts,e.situation,e.thoughts,e.feeling,e.patterns.map(pname).join("; "),e.facts,e.control,e.friend].map(csvCell).join(","));
+  /* new columns are appended, so anything built on the old export keeps working */
+  const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
+                "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note"];
+  const rows = entries.map(e=>[
+    e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
+    e.notMine, e.intensity, e.partial ? "yes" : "",
+    e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note
+  ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }
 function exportJSON(){
-  download("skywatch-entries.json","application/json",JSON.stringify(entries,null,2));
+  download("skywatch-entries.json","application/json",JSON.stringify({v:2, entries, plan},null,2));
 }
 function entryText(e){
-  return `— ${fmt(e.ts)} —\nSituation: ${e.situation}\nThoughts: ${e.thoughts}\nFeeling: ${e.feeling}\nPatterns: ${e.patterns.map(pname).join(", ")}\nFacts: ${e.facts}\nIn my control: ${e.control}\nTo a friend: ${e.friend}`;
+  const at = typeof e.intensity === "number" ? `\nAt: ${e.intensity}/10` : "";
+  const fu = e.followUp
+    ? `\nWhere it got to: ${e.intensity} → ${e.followUp.intensity} after ${fmtDur(durMs(e))}`
+      + ((e.followUp.helped||[]).length ? `\nWhat was happening: ${e.followUp.helped.join(", ")}` : "")
+      + (e.followUp.note ? `\nNote: ${e.followUp.note}` : "")
+    : "";
+  const nm = e.notMine ? `\nNot mine to carry: ${e.notMine}` : "";
+  return `— ${fmt(e.ts)} —${at}\nSituation: ${e.situation}\nThoughts: ${e.thoughts}\nFeeling: ${e.feeling}\nPatterns: ${(e.patterns||[]).map(pname).join(", ")}\nIn my control: ${e.control}${nm}\nFacts: ${e.facts}\nTo a friend: ${e.friend}${fu}`;
 }
 async function shareText(){
   const text = entries.map(entryText).join("\n\n");
@@ -690,7 +1401,11 @@ function toast(msg){
 /* ---------- init ---------- */
 (async function(){
   await store.init();
-  entries = await store.load();
+  entries = await store.load(KEY);
+  plan = normalizePlan(await store.load(PKEY, null));
+  /* opportunistic only: in an Artifact, climate.html's store isn't reachable */
+  const m = await store.load(MKEY, "");
+  climateLine = typeof m === "string" ? m : "";
   renderChips();
   renderReference();
   renderHome();

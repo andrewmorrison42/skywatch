@@ -47,7 +47,7 @@ All data is local. Nothing is transmitted anywhere.
 ### Three things that cause silent bugs here
 
 **1. `skywatch-mantra` is the only cross-app key.** `climate.html` writes it;
-`index.html:608` reads it and must never write it. Changing its shape in one app
+`index.html:620` reads it and must never write it. Changing its shape in one app
 breaks the other with no error.
 
 **2. Each app has its own near-duplicate `store` object.** They are separate
@@ -75,7 +75,7 @@ export and re-import; their entries do not follow them.
 
 `index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
 plus `opener` and `line` strings. Always read through `normalizePlan()`
-(`index.html:693`), which coerces anything malformed into a valid shape. Reuse
+(`index.html:705`), which coerces anything malformed into a valid shape. Reuse
 that defensive pattern rather than trusting stored JSON.
 
 `climate.html` entry — `{ id, ts, trigger, schemas[], perception, body, pulls[],
@@ -110,7 +110,7 @@ to produce a line the user can read mid-crisis — *your last 6 storms at 7+ all
 passed, median 4 hours.* The stat narrows to the band the user is currently in,
 so an 8 is compared against other 7+ days rather than a diluted lifetime average.
 
-Thresholds at `index.html:844-850`:
+Thresholds at `index.html:857-862`:
 
 | Constant | Value | Meaning |
 |---|---|---|
@@ -141,7 +141,7 @@ route:
 So scheduling is handed to the OS:
 
 - **Apple Reminders** via `shortcuts://run-shortcut`, matched by the Shortcut
-  name `Skywatch check-in` (`index.html:957`). There is no public URL scheme that
+  name `Skywatch check-in` (`index.html:969`). There is no public URL scheme that
   creates a reminder directly. Renaming the Shortcut silently breaks the button.
 - **Calendar `.ics`** underneath — no setup, works anywhere, shared via
   `navigator.share` where files can be shared and downloaded otherwise.
@@ -166,7 +166,7 @@ what they should do, or what will happen. It reflects their data back. Avoid
 anything that reads as a prognosis.
 
 **Echo the user's own words.** The afterglow uses `pickEcho()`
-(`index.html:1116`) to quote what the user themselves wrote in a past entry,
+(`index.html:1128`) to quote what the user themselves wrote in a past entry,
 rather than a generic affirmation. Their own sentence carries weight a platitude
 cannot. Preserve this whenever adding supportive copy.
 
@@ -179,10 +179,15 @@ supports nothing. Never round a small sample into a confident statement, never
 hide the sample size, and never present a selected subset as the whole picture.
 
 **Data stays on the device.** No analytics, no telemetry, no error reporting, no
-CDN, no fonts fetched over the network, no third-party anything. The app makes no
-outbound requests, and that is a promise to the user, not an implementation
-detail. Note that the repo is public, so the *code* is visible — but no entry
-ever leaves the browser.
+CDN, no third-party anything. The app makes no outbound requests, and that is a
+promise to the user, not an implementation detail. Note that the repo is public,
+so the *code* is visible — but no entry ever leaves the browser.
+
+Fonts are **self-hosted in `fonts/`** and declared with `@font-face` in each
+app's inline `<style>`. Both apps previously linked Google Fonts, which sent the
+user's IP to a third party on every load; do not reintroduce a `<link>` to any
+font CDN. When checking this guarantee, grep for `<link[^>]*href="http` as well
+as `fetch(` and `<script src=` — a stylesheet link is easy to miss.
 
 **Write for someone at 9/10.** Copy that appears mid-crisis should be short,
 concrete, and undemanding. Never ask a distressed user to fill in a form, make a

@@ -1385,11 +1385,30 @@ async function importJSON(input){
 function esc(s){ const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
 
 /* ---------- detail ---------- */
+/* a report saved without a number can't join the record and had no way back in,
+   so the scale stays reachable here rather than only at the moment of writing */
+let ratingOpen = false;
+function toggleRating(){ ratingOpen = !ratingOpen; openDetail(currentId); }
+async function setRating(i){
+  const e = entries.find(x=>x.id === currentId); if (!e) return;
+  e.intensity = i;
+  ratingOpen = false;
+  await store.save(KEY, entries);
+  openDetail(currentId);
+  renderHome();
+  toast("Rating saved");
+}
 function openDetail(id){
   const e = entries.find(x=>x.id===id); if(!e) return;
+  if (id !== currentId) ratingOpen = false;
   currentId = id;
   const blk = (label, val)=> val ? `<div class="detail-block"><div class="eyebrow">${label}</div><p>${esc(val)}</p></div>` : "";
   const fu = e.followUp;
+  const rated = typeof e.intensity === "number";
+  const showScale = !rated || ratingOpen;
+  /* past FU_WINDOW the app stops asking; say so here rather than let the
+     silence read as finished */
+  const stale = rated && !fu && (Date.now() - new Date(e.ts).getTime()) > FU_WINDOW;
   const after = fu
     ? `<div class="detail-block"><div class="eyebrow">Where it got to</div>
        <div class="move" style="font-family:ui-monospace,Menlo,monospace;color:${cameDown(e)?"var(--ok)":"var(--mist)"}">
@@ -1398,13 +1417,23 @@ function openDetail(id){
           fu.helped.map(h=>`<span class="chip mini">${esc(h)}</span>`).join("")}</div>` : ""}
        ${fu.note ? `<p style="margin-top:6px">${esc(fu.note)}</p>` : ""}
        <button class="btn quiet" style="text-align:left;padding:6px 0" onclick="openFollowUp('${e.id}')">Edit follow-up →</button></div>`
-    : typeof e.intensity === "number"
-      ? `<div class="detail-block"><button class="btn ghost" onclick="openFollowUp('${e.id}')">Where did it get to?</button>
-         <button class="btn quiet" onclick="${APPLE?`remindShortcut('${e.id}')`:`remindCalendar('${e.id}')`}">Remind me to come back →</button></div>`
+    : rated
+      ? `<div class="detail-block">
+         ${stale ? `<p class="sub" style="margin-top:0">Still open. Skywatch stops asking after three days — you can add it whenever.</p>` : ""}
+         <button class="btn ghost" onclick="openFollowUp('${e.id}')">Where did it get to?</button>
+         ${stale ? "" : `<button class="btn quiet" onclick="${APPLE?`remindShortcut('${e.id}')`:`remindCalendar('${e.id}')`}">Remind me to come back →</button>`}</div>`
       : "";
+  const rating = showScale
+    ? `<div class="detail-block"><div class="eyebrow">${rated ? "Change the number" : "How bad was it"}</div>
+       ${rated ? "" : `<p class="sub" style="margin-top:2px">This one was saved without a number, so it can't join the record yet. Add one if you can remember roughly.</p>`}
+       <div class="scale" id="rateScale"></div>
+       <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div></div>`
+    : "";
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>
-    ${typeof e.intensity === "number" ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10</div>` : ""}
+    ${rated ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10${
+      showScale ? "" : ` · <button class="btn quiet" style="display:inline;padding:0;font-size:.78rem" onclick="toggleRating()">change</button>`}</div>` : ""}
+    ${rating}
     ${blk("Situation", e.situation)}
     ${blk("The thoughts", e.thoughts)}
     ${blk("The weather in the body", e.feeling)}
@@ -1415,6 +1444,7 @@ function openDetail(id){
     ${blk("To a friend", e.friend)}
     ${after}
     ${e.partial ? `<div class="detail-block"><button class="btn ghost" onclick="resumeEntry('${e.id}')">Add the rest</button></div>` : ""}`;
+  if (showScale) renderScale("rateScale", rated ? e.intensity : null, setRating);
   show("detail");
 }
 async function deleteCurrent(){

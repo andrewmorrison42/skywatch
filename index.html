@@ -108,6 +108,21 @@
     .orb{transition:none}
   }
 
+  /* the beat after the breaths, and the step away */
+  #breathRate,#breathPre{margin-top:10px}
+  #breathRate .scale,#breathRate .scale-ends,
+  #breathPre .scale,#breathPre .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
+  #away{display:none;align-items:center;justify-content:center;text-align:center}
+  #away.active{display:flex}
+  .away-wrap{width:100%}
+  .away-wrap .detail-block{text-align:left}
+  .away-wrap textarea{text-align:left}
+  #awayScale,#away .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
+  .away-line{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--cloud)}
+  /* nothing to read, nothing to watch — the screen stops being somewhere to be */
+  #away.dark{background:#05080C}
+  #away.dark .away-line{color:#3E4C5E}
+
   /* form */
   .field{margin-top:20px}
   label.f{display:block;font-weight:600;font-size:1rem;margin-bottom:2px;color:#F4F7FB}
@@ -174,6 +189,7 @@
   .detail-block{margin-top:18px}
   .detail-block .eyebrow{margin-bottom:2px}
   .detail-block p{white-space:pre-wrap}
+  .detail-block .move{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.82rem;color:var(--mist);margin-top:4px}
   .danger{color:#E08A8A}
 
   .backlink{display:inline-block;color:var(--mist);font-size:.9rem;padding:6px 0;margin-bottom:8px}
@@ -184,6 +200,9 @@
   }
   .toast.show{opacity:1}
   .note{margin-top:14px;font-size:.8rem;color:var(--mist)}
+
+  /* author styles beat the UA sheet, so .btn's own display would defeat [hidden] */
+  [hidden]{display:none!important}
 
   /* focus ring for the added buttons */
   button:focus-visible{outline:2px solid var(--sun);outline-offset:2px;border-radius:4px}
@@ -231,6 +250,9 @@
   .grounding{margin-top:10px}
   .grounding li{list-style:none;padding:9px 0;border-bottom:1px solid var(--ridge);font-size:1.02rem}
   .grounding li:last-child{border-bottom:none}
+  .settings{display:grid;grid-template-columns:1fr 80px;gap:10px 12px;align-items:center;margin-top:10px}
+  .settings label{color:var(--cloud);font-size:.95rem}
+  .settings input{min-height:46px;text-align:center;padding:10px}
   .setup{margin:10px 0 0 18px;color:#AAB9CC;font-size:.9rem}
   .setup li{padding:4px 0}
   .setup b{color:var(--cloud);font-weight:600}
@@ -278,19 +300,87 @@
 <!-- ============ BREATHE ============ -->
 <section class="screen" id="breathe">
   <div class="breathe-wrap">
-    <div class="eyebrow">Before you write</div>
-    <h2 id="breathTitle">Five slow breaths</h2>
-    <div class="skyfield">
-      <div class="ring"></div>
-      <div class="orb" id="orb"></div>
-      <div>
-        <div class="breath-word" id="breathWord">Breathe in</div>
-      </div>
+    <!-- the reading the breaths are measured against -->
+    <div id="breathPre" hidden>
+      <div class="eyebrow">First</div>
+      <h2>Where is it right now?</h2>
+      <p class="sub">One tap. Body and mind together.</p>
+      <div class="scale" id="preScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+      <button class="btn quiet" style="margin-top:18px" onclick="startBreaths()">Skip &mdash; just breathe</button>
     </div>
-    <div class="breath-count" id="breathCount">Breath 1 of 5</div>
+    <div id="breathBody">
+      <div class="eyebrow">Before you write</div>
+      <h2 id="breathTitle">Five slow breaths</h2>
+      <div class="skyfield">
+        <div class="ring"></div>
+        <div class="orb" id="orb"></div>
+        <div>
+          <div class="breath-word" id="breathWord">Breathe in</div>
+        </div>
+      </div>
+      <div class="breath-count" id="breathCount">Breath 1 of 5</div>
+    </div>
+    <!-- the breaths used to end by forwarding straight into the form; they end here instead -->
+    <div id="breathRate" hidden>
+      <div class="eyebrow" id="breathRateLead">That's five</div>
+      <h2 id="breathRateAsk">Where is it now?</h2>
+      <div class="scale" id="breathScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+    </div>
     <p class="anchor-line" id="anchorLine">Look at the sky.<br>Don't get pulled into the weather.</p>
     <div id="breatheStat"></div>
     <button class="btn quiet" id="skipBtn" style="margin-top:18px;visibility:hidden" onclick="skipBreath()">Skip ahead</button>
+  </div>
+</section>
+
+<!-- ============ AWAY — five minutes off the desk ============ -->
+<section class="screen" id="away">
+  <div class="away-wrap">
+
+    <div id="awayLead">
+      <div class="eyebrow" id="awayMins">Five minutes</div>
+      <h2>Leave the work phone on the desk.</h2>
+      <!-- the permission first, then the logistics — this line is what gets someone
+           out of the chair, not the route and not the rule -->
+      <p class="anchor-line" id="awayLine" style="margin-top:14px"></p>
+      <button class="btn quiet" id="saySome" hidden onclick="sayTruth()">Read it to me &mdash; then pocket it</button>
+      <p class="sub" id="awayRoute" style="margin-top:16px"></p>
+      <p class="sub" id="awayRule" style="margin-top:6px"></p>
+      <div id="awayWorks"></div>
+      <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="awaySkip()">Write it down instead</button>
+    </div>
+
+    <div id="awayDark" hidden onclick="showAwayBack()">
+      <p class="away-line">Put it in your pocket.</p>
+      <button class="btn quiet" id="awayBackBtn" style="margin-top:34px;visibility:hidden" onclick="awayBack()">I'm back</button>
+    </div>
+
+    <!-- friction, not a lock: one tap, and a way past it -->
+    <div id="awayWhy" hidden>
+      <div class="eyebrow">Back early</div>
+      <h2>What pulled you back?</h2>
+      <p class="sub">Worth knowing later. Skip it if you'd rather.</p>
+      <div class="chips" id="whyChips" style="margin-top:12px;justify-content:center"></div>
+      <textarea id="fWhy" style="margin-top:12px" placeholder="Or say it in your own words"></textarea>
+      <div style="margin-top:20px"><button class="btn" onclick="saveWhy()">Done</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="skipWhy()">Skip</button>
+    </div>
+
+    <div id="awayRate" hidden>
+      <div class="eyebrow">Back</div>
+      <h2>Where is it now?</h2>
+      <div class="scale" id="awayScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+
+      <p class="sub" style="margin-top:24px">And the head itself?</p>
+      <div class="chips" id="mindChips" style="margin-top:8px;justify-content:center"></div>
+
+      <div style="margin-top:24px"><button class="btn" onclick="goWrite()">Write it down</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="saveResetOnly()">Just save the number</button>
+    </div>
+
   </div>
 </section>
 
@@ -323,11 +413,14 @@
     <textarea id="fQuickLine"></textarea>
   </div>
 
-  <div class="field">
-    <label class="f">One thing to do next<small>From the plan, or type it. One thing — not a list.</small></label>
+  <div id="quickKind"></div>
+
+  <div class="field" id="quickSteerField">
+    <label class="f" id="quickSteerLabel">One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small></label>
     <div class="chips" id="quickSteer" style="margin-bottom:8px"></div>
     <textarea id="fQuickSteer"></textarea>
   </div>
+  <div id="quickStill"></div>
 
   <div id="quickPlan"></div>
 
@@ -387,7 +480,7 @@
   </div>
 
   <div class="field">
-    <label class="f" for="fFriend">To a friend<small>If a mate at work described this exact situation, what would I say to them?</small></label>
+    <label class="f" for="fFriend">To a friend<small>If a mate at work described this exact situation &mdash; not what they should do next. What's true about what they're carrying?</small></label>
     <textarea id="fFriend"></textarea>
   </div>
 
@@ -457,6 +550,13 @@
   </div>
 
   <div class="listwrap">
+    <label class="f" for="pTruth">When it's a lot<small>The things that are true and go missing at 8 out of 10. Facts about the load, not encouragement &mdash; and not what to do about it. One per line.</small></label>
+    <textarea id="pTruth" placeholder="e.g. I'm carrying a lot right now, so I'm not going to be perfect at it.
+A good part of this isn't mine to carry.
+Not everything has to be fixed today."></textarea>
+  </div>
+
+  <div class="listwrap">
     <label class="f" for="pWorks">What actually works<small>One per line. Only things that have worked — not things that should. These are what comes back to you mid-storm.</small></label>
     <textarea id="pWorks" placeholder="e.g. Go outside before I reply&#10;Text Sam&#10;Put it in writing tomorrow, not tonight&#10;Eat something"></textarea>
   </div>
@@ -484,6 +584,25 @@
   <div class="listwrap">
     <label class="f" for="pOpener">The opening line<small>The exact words you send. Written now, so there's nothing to compose later.</small></label>
     <textarea id="pOpener" style="min-height:52px" placeholder="e.g. Bad head today, not after advice — can you talk for ten minutes?"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pRoute">The walk<small>Where you go for five minutes. Somewhere you don't have to decide about.</small></label>
+    <textarea id="pRoute" style="min-height:52px" placeholder="e.g. to the end of the road and back"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pWalkLine">What to tell yourself about going<small>Shown on the walk screen, at the moment it's hardest to justify. The version that lands is usually the one you'd say to someone else &mdash; so write that one.</small></label>
+    <textarea id="pWalkLine" style="min-height:52px"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f">When a walk is the path<small>After the breaths, Skywatch sends you for a walk if it's still at or above the first number &mdash; or if it came in that high and the breathing moved it less than the second.</small></label>
+    <div class="settings">
+      <label for="pResetAt">Still at or above</label><input type="number" id="pResetAt" min="0" max="10" inputmode="numeric">
+      <label for="pMinDrop">Or moved less than</label><input type="number" id="pMinDrop" min="0" max="10" inputmode="numeric">
+      <label for="pWalkMins">Walk for (minutes)</label><input type="number" id="pWalkMins" min="1" max="60" inputmode="numeric">
+    </div>
   </div>
 
   <div style="margin-top:28px">
@@ -696,17 +815,38 @@ let flowMode = "full";
 let editingId = null;
 let entryIntensity = null;
 let quickIntensity = null;
+/* a prefilled number isn't something the user typed — the discard prompts compare against it */
+let entrySeed = null;
+let quickSeed = null;
+let truthPick = 0;        /* chosen once per flow — a line that reshuffles mid-form reads as noise */
+let preAt = null;         /* the reading the breaths are measured against */
+let breathAt = null;      /* the number tapped on the beat the breaths run into */
+let pendingReset = null;  /* built on the reset path, consumed by whichever save comes next */
+let awayStart = null;     /* Date.now() stamp — elapsed is always derived from this, never counted */
+let awayTimer = null;
+let awayLock = null;      /* screen wake lock, where the platform gives us one */
+let awayCtx = null;       /* AudioContext, built on the starting tap */
 let fuIntensity = null;
 let fuHelped = new Set();
 let fuId = null;
 
 /* ---------- storm plan ---------- */
-const PLAN_LISTS = ["signs","works","worse","noDecide","tell"];
+const PLAN_LISTS = ["truth","signs","works","worse","noDecide","tell"];
+/* the walk screen's own line, if you haven't written one */
+const WALK_LINE = "You'd send a team member for this walk. Same rule.";
+const num = (v, dflt, lo, hi) =>
+  (typeof v === "number" && isFinite(v)) ? Math.min(hi, Math.max(lo, Math.round(v))) : dflt;
 function normalizePlan(raw){
   const p = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
   const out = { v:1, updated: typeof p.updated === "string" ? p.updated : "",
                 opener: typeof p.opener === "string" ? p.opener : "",
-                line:   typeof p.line   === "string" ? p.line   : "" };
+                line:   typeof p.line   === "string" ? p.line   : "",
+                route:    typeof p.route    === "string" ? p.route    : "",
+                walkLine: typeof p.walkLine === "string" && p.walkLine.trim() ? p.walkLine : WALK_LINE,
+                /* tuning, not a safety floor — unlike the stat floors below, these are yours */
+                resetAt:  num(p.resetAt,  6,  0, 10),
+                minDrop:  num(p.minDrop,  2,  0, 10),
+                walkMins: num(p.walkMins, 5,  1, 60) };
   PLAN_LISTS.forEach(k=>{
     out[k] = Array.isArray(p[k]) ? p[k].filter(x=>typeof x === "string" && x.trim()).map(x=>x.trim()) : [];
   });
@@ -721,6 +861,11 @@ function planLines(s){
 function renderPlan(){
   document.getElementById("pLine").value     = plan.line;
   document.getElementById("pOpener").value   = plan.opener;
+  document.getElementById("pRoute").value    = plan.route;
+  document.getElementById("pWalkLine").value = plan.walkLine;
+  document.getElementById("pResetAt").value  = plan.resetAt;
+  document.getElementById("pMinDrop").value  = plan.minDrop;
+  document.getElementById("pWalkMins").value = plan.walkMins;
   PLAN_LISTS.forEach(k=>{
     document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value = plan[k].join("\n");
   });
@@ -736,8 +881,13 @@ function useClimateLine(){
   document.getElementById("mantraOffer").innerHTML = "";
 }
 async function savePlan(){
-  plan.line   = document.getElementById("pLine").value.trim();
-  plan.opener = document.getElementById("pOpener").value.trim();
+  plan.line     = document.getElementById("pLine").value.trim();
+  plan.opener   = document.getElementById("pOpener").value.trim();
+  plan.route    = document.getElementById("pRoute").value.trim();
+  plan.walkLine = document.getElementById("pWalkLine").value.trim() || WALK_LINE;
+  plan.resetAt  = num(parseInt(document.getElementById("pResetAt").value, 10),  6, 0, 10);
+  plan.minDrop  = num(parseInt(document.getElementById("pMinDrop").value, 10),  2, 0, 10);
+  plan.walkMins = num(parseInt(document.getElementById("pWalkMins").value, 10), 5, 1, 60);
   PLAN_LISTS.forEach(k=>{
     plan[k] = planLines(document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value);
   });
@@ -764,7 +914,9 @@ function renderPlanCard(){
 
 /* ---------- nav ---------- */
 function show(id){
+  hush();
   clearBreathe();
+  clearAway();
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   window.scrollTo(0,0);
@@ -807,6 +959,11 @@ const WORDS = {full:"Five", quick:"Three"};
 function startBreathe(mode){
   flowMode = mode === "quick" ? "quick" : "full";
   editingId = null;
+  truthPick = Math.floor(Math.random()*1e6);
+  preAt = null;
+  breathAt = null;
+  pendingReset = null;
+  resetBreatheScreen();
   if (flowMode === "quick") resetQuick(); else resetForm();
   document.getElementById(flowMode === "quick" ? "quickStamp" : "entryStamp").textContent = fmt(new Date());
   document.getElementById("breathTitle").textContent = `${WORDS[flowMode]} slow breaths`;
@@ -815,10 +972,108 @@ function startBreathe(mode){
     ? esc(plan.line)
     : "Look at the sky.<br>Don't get pulled into the weather.";
   document.getElementById("breatheStat").innerHTML = renderStat(null);
+  document.getElementById("breathPre").hidden = false;
+  document.getElementById("breathBody").hidden = true;
+  renderScale("preScale", null, i=>{ preAt = i; startBreaths(); });
   show("breathe");
+}
+/* one tap, and a way past it — nothing here is owed before the breathing starts */
+function startBreaths(){
+  document.getElementById("breathPre").hidden = true;
+  document.getElementById("breathBody").hidden = false;
+  document.getElementById("breatheStat").innerHTML = renderStat(preAt);
   runBreaths();
 }
-function skipBreath(){ show(flowMode === "quick" ? "quick" : "entry"); }
+/* the Skip button is an explicit "get me to the page" — it stays a straight line */
+function skipBreath(){ goWrite(); }
+function newReset(kind){
+  return { kind, pre:preAt, post:breathAt, after:null, mind:"", ms:0,
+           walked:false, override:false, reason:"" };
+}
+/* the storm's height is the earliest reading, not the one taken after it eased —
+   writing the post-reset number here would walk every reset back into stormStats()
+   as a smaller storm */
+function stormLevel(){ return preAt !== null ? preAt : breathAt; }
+function goWrite(){
+  const n = stormLevel();
+  if (typeof n === "number"){
+    if (flowMode === "quick"){ quickIntensity = quickSeed = n; drawQuickScale(); }
+    else { entryIntensity = entrySeed = n; drawEntryScale(); }
+  }
+  applySteerGate();
+  show(flowMode === "quick" ? "quick" : "entry");
+}
+function latestReading(){
+  if (pendingReset && typeof pendingReset.after === "number") return pendingReset.after;
+  if (typeof breathAt === "number") return breathAt;
+  return preAt;
+}
+/* Still up is not a failed reset, and the answer to it is not to take the next step away.
+   Asked what he'd do for someone who came back still stressed, the user said: give them
+   one easy thing, and take the pile off them. So that is what this does — it narrows the
+   ask and shields the rest (`plan.noDecide` is already rendered below as "Not today").
+   It does not hide the field, and it says nothing about how they are doing. */
+function applySteerGate(){
+  const n = latestReading();
+  const still = typeof n === "number" && n >= plan.resetAt;
+  document.getElementById("quickSteerLabel").innerHTML = still
+    ? `One small thing<small>Not the pile &mdash; that keeps. Something you could do badly and it would still be fine.</small>`
+    : `One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small>`;
+  document.getElementById("quickStill").innerHTML = still ? worksBlock() : "";
+  document.getElementById("quickKind").innerHTML = still ? kindEcho() : "";
+}
+/* The app has no business being kind in its own voice — it would be a stranger telling a
+   distressed person how to feel. Its one legitimate move is to hand back what this user
+   wrote himself.
+
+   This used to quote past `friend` answers. That was wrong. Asked what he'd say to a mate
+   in the same spot, he answers "what's the next thing" — keep performing. The prompt
+   invited advice, so it got advice, and quoting it back at 7 out of 10 reinforced the
+   exact move this whole path exists to interrupt. The app cannot sort a user's own
+   sentences into kind and unkind; that is a judgement about him it has no standing to
+   make. So it reads only from `plan.truth`, written deliberately in fair weather for this
+   job. Nothing at all when that is empty — never a generated affirmation, and never
+   `friend` again. */
+function truthLine(){ return plan.truth.length ? plan.truth[truthPick % plan.truth.length] : ""; }
+function kindEcho(){
+  const t = truthLine();
+  if (!t) return "";
+  return `<div class="stat" style="margin-top:20px"><span style="font-family:'Fraunces',serif">${esc(t)}</span>
+    <span class="then">You wrote that when it was calm.</span>
+    ${canSpeak() ? `<button class="btn quiet" style="text-align:left;padding:8px 0 0" onclick="sayLine()">Read it to me \u2192</button>` : ""}</div>`;
+}
+/* The beat the breaths run into. One number — the same one the report was going to
+   ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
+function endBreaths(){
+  breathAt = null;
+  pendingReset = null;
+  document.getElementById("breathBody").hidden = true;
+  document.getElementById("skipBtn").style.visibility = "hidden";
+  document.getElementById("breathRateLead").textContent = `That's ${WORDS[flowMode].toLowerCase()}`;
+  document.getElementById("breathRateAsk").textContent = preAt === null ? "Where is it now?" : "And now?";
+  document.getElementById("breathRate").hidden = false;
+  drawBreathScale();
+}
+/* Two ways in. The level on its own waves through the case this path exists for —
+   a storm that came in high and didn't move is going through the motions, whatever
+   number it stopped at. The drop clause only applies to storms that came in high,
+   so a flat 2 is never sent out for a walk. */
+function needsWalk(pre, post){
+  if (typeof post !== "number") return false;
+  if (post >= plan.resetAt) return true;
+  return typeof pre === "number" && pre >= plan.resetAt && (pre - post) < plan.minDrop;
+}
+function drawBreathScale(){
+  renderScale("breathScale", breathAt, i=>{
+    breathAt = i;
+    drawBreathScale();
+    pendingReset = newReset("desk");
+    /* the walk is the path, not an offer — and nothing is said about the number,
+       because a remark on how high it is lands as a telling-off */
+    clearBreathe();
+    breatheTimer = setTimeout(()=> needsWalk(preAt, i) ? startAway() : goWrite(), 340);
+  });
+}
 function runBreaths(){
   const orb = document.getElementById("orb");
   const word = document.getElementById("breathWord");
@@ -829,7 +1084,7 @@ function runBreaths(){
   const IN = 4000, OUT = 6000;
 
   function cycle(){
-    if (breath > total){ skipBreath(); return; }
+    if (breath > total){ endBreaths(); return; }
     count.textContent = `Breath ${breath} of ${total}`;
     word.textContent = "Breathe in";
     orb.classList.add("in");
@@ -851,6 +1106,203 @@ function clearBreathe(){
   if (breatheTimer){ clearTimeout(breatheTimer); breatheTimer = null; }
   document.getElementById("orb").classList.remove("in");
 }
+/* show() runs this on the way in as well as the way out, so startBreathe() restores
+   the screen rather than leaving it in whatever state the last visit ended in */
+function resetBreatheScreen(){
+  document.getElementById("breathPre").hidden = true;
+  document.getElementById("breathBody").hidden = false;
+  document.getElementById("breathRate").hidden = true;
+}
+
+/* ---------- saying it out loud ---------- */
+/* Reading is work at 8 out of 10, and these lines land differently spoken than read.
+   The catch: some browsers back speechSynthesis with a cloud service, so handing it a
+   sentence posts that sentence to a third party — which would quietly break the promise
+   the rest of this file keeps. `localService` is the filter, and the voice is pinned
+   explicitly rather than left to the default, which may be remote. No local voice means
+   no button at all: a missing affordance is honest, a silent tap is not. */
+let voice = null;
+function pickVoice(){
+  if (!("speechSynthesis" in window)) return null;
+  let local = [];
+  try{ local = speechSynthesis.getVoices().filter(v=>v.localService); }catch(e){ return null; }
+  const lang = (navigator.language || "en").slice(0,2);
+  voice = local.find(v=>String(v.lang).slice(0,2) === lang) || local[0] || null;
+  return voice;
+}
+function canSpeak(){ return !!voice; }
+function say(lines){
+  if (!canSpeak()) return;
+  try{
+    speechSynthesis.cancel();
+    [].concat(lines).filter(Boolean).forEach(t=>{
+      const u = new SpeechSynthesisUtterance(String(t));
+      u.voice = voice; u.lang = voice.lang; u.rate = 0.86;
+      speechSynthesis.speak(u);
+    });
+  }catch(e){}
+}
+function hush(){ try{ if ("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){} }
+function sayTruth(){ say(plan.truth); }
+function sayLine(){ say(truthLine()); }
+
+/* ---------- five minutes off the desk ---------- */
+/* No seconds, no counter: a screen worth watching is a screen you don't put down. */
+const AWAY_TICK = 10000;
+const WHY = ["Called away","It passed","Couldn't do it","Forgot"];
+/* the number says how loud it is; this says whether the head cleared. They come apart —
+   back at 6 and thinking straight is a different afternoon from 4 and still churning. */
+const MIND = ["Clearer","Much the same","Still churning","Can't tell"];
+/* how long the walk is meant to be, in ms — yours to set on the plan screen */
+function walkMs(){ return plan.walkMins * 60000; }
+
+function startAway(){
+  clearBreathe();
+  pendingReset = newReset("away");
+  armChime();                 /* must happen inside the tap — iOS allows audio no other way */
+  document.getElementById("awayMins").textContent =
+    `${plan.walkMins} minute${plan.walkMins === 1 ? "" : "s"}`;
+  /* Not "you are high", which reads as a telling-off, and not an argument for going —
+     just the rule, as it was written in fair weather, by the person best placed to write it. */
+  document.getElementById("awayRule").textContent =
+    `Your rule, written calm: at ${plan.resetAt} or above, you walk.`;
+  document.getElementById("awayRoute").textContent = plan.route
+    ? `Stand up. Walk ${plan.route}. This one comes with you and says when it's up.`
+    : "Stand up. Go somewhere else. This one comes with you and says when it's up.";
+  document.getElementById("awayLine").textContent = plan.walkLine;
+  document.getElementById("awayWorks").innerHTML = worksBlock();
+  document.getElementById("saySome").hidden = !(canSpeak() && plan.truth.length);
+  awayState("awayLead");
+  show("away");               /* show() clears the stamp, so it is set afterwards */
+}
+function awaySkip(){
+  clearAway();
+  pendingReset = newReset("desk");
+  goWrite();
+}
+function awayGo(){
+  armChime();
+  awayState("awayDark");
+  document.getElementById("away").classList.add("dark");
+  document.getElementById("awayBackBtn").style.visibility = "hidden";
+  awayStart = Date.now();
+  awayTick();
+  holdScreen();
+}
+function showAwayBack(){ document.getElementById("awayBackBtn").style.visibility = "visible"; }
+/* A backgrounded tab throttles timers and a locked screen stops them, so elapsed is
+   always the stamp subtracted from now — never a count of ticks that ran. */
+function awayElapsed(){ return awayStart ? Math.max(0, Date.now() - awayStart) : 0; }
+function awayTick(){
+  if (awayTimer){ clearTimeout(awayTimer); awayTimer = null; }
+  if (!awayStart) return;
+  const left = walkMs() - awayElapsed();
+  if (left <= 0){ chime(); awayBack(); return; }
+  awayTimer = setTimeout(awayTick, Math.min(left, AWAY_TICK));
+}
+function awayBack(){
+  const ms = awayElapsed();
+  const full = ms >= walkMs();
+  if (pendingReset){
+    pendingReset.ms = ms;
+    pendingReset.walked = full;
+    pendingReset.override = !full;
+  }
+  clearAway();
+  /* coming back early costs a tap, never a justification — the chips are optional
+     and skippable, and no copy anywhere compares the time to what was asked for */
+  if (full) return askAfter();
+  document.getElementById("fWhy").value = "";
+  drawWhyChips();
+  awayState("awayWhy");
+}
+function drawWhyChips(){
+  renderChipList("whyChips", WHY,
+    t => !!pendingReset && pendingReset.reason === t,
+    t => { if (pendingReset) pendingReset.reason = (pendingReset.reason === t) ? "" : t;
+           drawWhyChips(); });
+}
+function saveWhy(){
+  const typed = document.getElementById("fWhy").value.trim();
+  if (pendingReset && typed) pendingReset.reason = typed;
+  askAfter();
+}
+function skipWhy(){ askAfter(); }
+/* the scale here only records — both ways on stay reachable, so the walk can end
+   without the app insisting on a report to close it */
+function askAfter(){
+  awayState("awayRate");
+  drawAfterScale();
+  drawMindChips();
+}
+function drawMindChips(){
+  renderChipList("mindChips", MIND,
+    t => !!pendingReset && pendingReset.mind === t,
+    t => { if (pendingReset) pendingReset.mind = (pendingReset.mind === t) ? "" : t;
+           drawMindChips(); });
+}
+function drawAfterScale(){
+  renderScale("awayScale", pendingReset ? pendingReset.after : null, i=>{
+    if (pendingReset) pendingReset.after = (pendingReset.after === i) ? null : i;
+    drawAfterScale();
+    applySteerGate();
+  });
+}
+function awayState(id){
+  ["awayLead","awayDark","awayWhy","awayRate"].forEach(x=>{
+    document.getElementById(x).hidden = (x !== id);
+  });
+}
+function clearAway(){
+  if (awayTimer){ clearTimeout(awayTimer); awayTimer = null; }
+  awayStart = null;
+  document.getElementById("away").classList.remove("dark");
+  dropScreen();
+}
+/* The wake lock is what makes the chime honest: iOS suspends an AudioContext the moment
+   the page stops being visible, so without it the tone silently never fires. Unsupported
+   or refused is a normal outcome — the copy simply stops promising a signal. */
+async function holdScreen(){
+  try{
+    if (!navigator.wakeLock || awayLock) return;
+    awayLock = await navigator.wakeLock.request("screen");
+    awayLock.addEventListener("release", ()=>{ awayLock = null; });
+  }catch(e){ awayLock = null; }
+}
+function dropScreen(){
+  if (awayLock){ try{ awayLock.release(); }catch(e){} awayLock = null; }
+}
+function armChime(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    awayCtx = awayCtx || new AC();
+    if (awayCtx.state === "suspended") awayCtx.resume();
+  }catch(e){ awayCtx = null; }
+}
+/* generated, not fetched — nothing here reaches the network */
+function chime(){
+  if (navigator.vibrate){ try{ navigator.vibrate([120,90,120]); }catch(e){} }
+  if (!awayCtx || awayCtx.state !== "running") return;
+  try{
+    const t = awayCtx.currentTime;
+    [396, 594].forEach((hz, i)=>{
+      const o = awayCtx.createOscillator(), g = awayCtx.createGain();
+      o.type = "sine"; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(i ? 0.03 : 0.06, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(g); g.connect(awayCtx.destination);
+      o.start(t); o.stop(t + 1.7);
+    });
+  }catch(e){}
+}
+/* the OS drops a wake lock whenever the page hides — retake it and recompute from the
+   stamp, so a locked screen can neither fake five minutes nor strand the reset */
+document.addEventListener("visibilitychange", ()=>{
+  if (document.visibilityState !== "visible" || !awayStart) return;
+  armChime(); holdScreen(); awayTick();
+});
 
 /* ---------- the evidence engine ---------- */
 const H = 3600000;
@@ -860,6 +1312,13 @@ const HIGH       = 7;
 const MIN_PAIRS  = 3;     /* below this, say nothing at all */
 const MIN_TIME   = 4;     /* a median duration needs this many */
 const MIN_HELPED = 3;     /* a chip must recur this often to be named */
+/* Back inside ninety seconds isn't a reset. It's still recorded — it's what happened —
+   but it doesn't get to vote in the stat. */
+const AWAY_MIN_MS = 90000;
+/* Higher than MIN_PAIRS, and not a copy of it. A storm pair compares two readings hours
+   apart; this compares two taken five minutes apart by someone who knows they have just
+   done the thing that is meant to help. A same-sitting before/after needs more of them. */
+const MIN_AWAY = 5;
 
 function needsCheck(e){
   if (typeof e.intensity !== "number" || e.followUp) return false;
@@ -904,6 +1363,47 @@ function stormStats(at){
     helped: [...tally.entries()].filter(([,c]) => c >= MIN_HELPED)
               .sort((a,b) => b[1] - a[1]).slice(0,2).map(([t]) => t)
   };
+}
+function resetSessions(){ return entries.filter(e => e.reset && typeof e.reset === "object"); }
+function drops(list, a, b){
+  return list.filter(e => typeof e.reset[a] === "number" && typeof e.reset[b] === "number")
+             .map(e => e.reset[a] - e.reset[b]);
+}
+function oneDp(n){ return String(Math.round(n*10)/10).replace(/\.0$/,""); }
+/* Counts what happened, and reports the two moves separately. It does NOT divide one by
+   the other or call the difference an effect: the walk only ever happens on the storms
+   that were already worse, so the two arms are not comparable and the copy says so. A
+   rate of walks taken versus skipped is deliberately absent — that is a compliance score,
+   and a low one would land as a verdict on a bad week. */
+function resetStat(){
+  const all    = resetSessions();
+  const routed = all.filter(e => e.reset.kind === "away");
+  const breath = drops(all, "pre", "post");
+  const walk   = drops(routed.filter(e => typeof e.reset.ms === "number" && e.reset.ms >= AWAY_MIN_MS),
+                       "post", "after");
+  if (routed.length < MIN_AWAY && breath.length < MIN_AWAY) return "";
+
+  const bits = [];
+  if (routed.length >= MIN_AWAY){
+    const walked = routed.filter(e => e.reset.walked).length;
+    const early  = routed.length - walked;
+    bits.push(`Sent out for a walk ${routed.length} times. You went ${walked}${
+      early ? `, came back early ${early}` : ""}.`);
+  }
+  const moves = [];
+  if (breath.length >= MIN_AWAY) moves.push(`Breathing moved it ${oneDp(median(breath))} across ${breath.length}`);
+  if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${oneDp(median(walk))} more across ${walk.length}`);
+  if (moves.length) bits.push(moves.join(", ") + ".");
+
+  /* `mind` is recorded and shown on the entry itself, but never totted up into a
+     clearer-versus-not score. A tally of how often the reset "worked" is a thing to be
+     judged by, and this user is already harder on themselves than on anyone else. */
+  if (!bits.length) return "";
+
+  const both = breath.length >= MIN_AWAY && walk.length >= MIN_AWAY;
+  return `<div class="stat">${bits.join(" ")}${both
+    ? `<span class="then">Not a comparison — the walk only happens on the storms that were already worse.</span>`
+    : ""}</div>`;
 }
 /* The crisis surface is edited: with nothing yet come down, a count would land as
    proof it never does. The archive stays unedited — see the Weathered screen. */
@@ -1034,7 +1534,7 @@ function resetForm(){
   ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
     .forEach(i=>document.getElementById(i).value="");
   selectedPatterns = new Set();
-  entryIntensity = null;
+  entryIntensity = entrySeed = null;
   document.getElementById("entryTitle").textContent = "Log the weather";
   drawEntryScale();
   renderChips();
@@ -1082,7 +1582,7 @@ function showChipInfo(p){
 }
 function confirmLeave(){
   const dirty = ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
-    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size || entryIntensity !== null;
+    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size || entryIntensity !== entrySeed;
   const ask = editingId ? "Leave the rest for later?" : "Discard this report?";
   if (!dirty || confirm(ask)) show("home");
 }
@@ -1110,6 +1610,8 @@ async function saveEntry(){
       id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
       ts: new Date().toISOString(),
     }, fields);
+    /* only ever on a fresh report — a reset belongs to the storm it happened in */
+    if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
     entries.unshift(e);
   }
   await store.save(KEY, entries);
@@ -1126,24 +1628,34 @@ function showAfterglow(justSaved){
 }
 /* your own words first; the borrowed ones only while there are none */
 function pickEcho(justSaved){
-  const pats = new Set(justSaved.patterns || []);
-  const pool = entries.filter(x=>x.id !== justSaved.id && (x.friend||"").trim());
-  const same = pool.find(x=>(x.patterns||[]).some(p=>pats.has(p)));
-  const hit = same || pool[0];
-  if (hit){
-    const p = (hit.patterns||[]).find(x=>pats.has(x));
-    return { t: hit.friend, by: `You \u2014 ${fmtDate(hit.ts)}`,
-             lead: p ? `What you wrote last time ${pname(p).toLowerCase()} showed up` : "What you wrote before" };
-  }
+  /* ahead of `friend` for the reason given on kindEcho() — these were written for this
+     job, and the friend answers were written in a register that does not do it */
+  if (plan.truth.length)
+    return { t: plan.truth[truthPick % plan.truth.length], by: "Your own words",
+             lead: "What's true when it's a lot" };
+  /* `friend` used to be quoted here. It is no longer read by any supportive surface — see
+     kindEcho(). The field and its history stay: they are an honest record of what he
+     actually says to himself, which is worth having. They are just not reassurance, and
+     handing them back as if they were made this screen land as a demand. */
   if (plan.line) return { t: plan.line, by: "Your line", lead: "From the plan" };
   const c = CLOSERS[Math.floor(Math.random()*CLOSERS.length)];
   return { t: c, by: "", lead: "Report filed. Weather noted." };
 }
 
 /* ---------- the short path ---------- */
+/* the first place these words are read back rather than laundered into chips — picking
+   an action is exactly the move this path exists to delay */
+function worksBlock(){
+  if (!plan.works.length) return "";
+  return `<div class="detail-block"><div class="eyebrow">What actually works</div>
+    <p>${esc(plan.works.join("\n"))}</p>
+    <div class="sub" style="margin-top:6px">You wrote these when it was calm.</div></div>`;
+}
 function resetQuick(){
   ["fQuickLine","fQuickSteer"].forEach(i=>document.getElementById(i).value="");
-  quickIntensity = null;
+  quickIntensity = quickSeed = null;
+  document.getElementById("quickStill").innerHTML = "";
+  document.getElementById("quickKind").innerHTML = "";
   drawQuickScale();
   renderQuickSteer();
   const bits = [];
@@ -1179,7 +1691,7 @@ async function copyOpener(){
 }
 function confirmLeaveQuick(){
   const dirty = ["fQuickLine","fQuickSteer"].some(i=>document.getElementById(i).value.trim())
-                || quickIntensity !== null;
+                || quickIntensity !== quickSeed;
   if (!dirty || confirm("Discard this?")) show("home");
 }
 async function saveQuick(){
@@ -1194,12 +1706,32 @@ async function saveQuick(){
     intensity: quickIntensity,
     partial: true,
   };
+  if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
   entries.unshift(e);
   await store.save(KEY, entries);
   showAfterglow(e);
 }
+/* Without this a walk followed by closing the app records nothing, which is exactly
+   the session the log most wants. Reuses the partial shape the quick path already writes. */
+async function saveResetOnly(){
+  const n = stormLevel();
+  const e = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    situation:"", thoughts:"", feeling:"", patterns:[], facts:"",
+    control:"", friend:"", notMine:"",
+    intensity: typeof n === "number" ? n : null,
+    partial: true,
+  };
+  if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
+  entries.unshift(e);
+  await store.save(KEY, entries);
+  toast("Saved");
+  show("home");
+}
 function resumeEntry(id){
   const e = entries.find(x=>x.id === id); if (!e) return;
+  pendingReset = null;
   resetForm();
   editingId = id;
   document.getElementById("entryTitle").textContent = "Add the rest";
@@ -1209,7 +1741,7 @@ function resumeEntry(id){
   set("fFacts", e.facts); set("fControl", e.control); set("fFriend", e.friend);
   set("fNotMine", e.notMine);
   selectedPatterns = new Set(e.patterns || []);
-  entryIntensity = typeof e.intensity === "number" ? e.intensity : null;
+  entryIntensity = entrySeed = typeof e.intensity === "number" ? e.intensity : null;
   drawEntryScale();
   renderChips();
   renderSteer();
@@ -1340,8 +1872,10 @@ function renderStatCard(){
 function renderWeathered(){
   const pairs = settledPairs();
   const el = document.getElementById("weatheredList");
+  /* resets are counted separately from storm pairs — one can exist without the other */
+  const away = resetStat();
   if (!pairs.length){
-    el.innerHTML = `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
+    el.innerHTML = away + `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
     return;
   }
   /* chronological, both kinds, nothing hidden — the verdict is not the organising principle */
@@ -1356,7 +1890,7 @@ function renderWeathered(){
       ${e.followUp.note ? `<div class="said">${esc(e.followUp.note)}</div>` : ""}
     </div>`;
   };
-  el.innerHTML = pairs.map(row).join("");
+  el.innerHTML = away + pairs.map(row).join("");
 }
 
 async function importJSON(input){
@@ -1441,6 +1975,16 @@ function openDetail(id){
        <div class="scale" id="rateScale"></div>
        <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div></div>`
     : "";
+  const r = e.reset;
+  const trail = r ? [r.pre, r.post, r.after].filter(x=>typeof x === "number") : [];
+  const stepped = r && r.kind === "away" && typeof r.ms === "number"
+    ? `<div class="detail-block"><div class="eyebrow">Walked</div>
+       <div class="move">${trail.length > 1 ? trail.join(" \u2192 ") + " \u00B7 " : ""}${fmtDur(r.ms)}</div>
+       ${r.mind ? `<div class="sub" style="margin-top:4px">Head after: ${esc(r.mind)}</div>` : ""}
+       ${r.reason ? `<div class="sub" style="margin-top:4px">Back early: ${esc(r.reason)}</div>` : ""}</div>`
+    : (trail.length > 1
+        ? `<div class="detail-block"><div class="eyebrow">Breathing</div>
+           <div class="move">${trail.join(" \u2192 ")}</div></div>` : "");
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>
     ${rated ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10${
@@ -1455,6 +1999,7 @@ function openDetail(id){
     ${blk("The facts", e.facts)}
     ${blk("To a friend", e.friend)}
     ${after}
+    ${stepped}
     ${e.partial ? `<div class="detail-block"><button class="btn ghost" onclick="resumeEntry('${e.id}')">Add the rest</button></div>` : ""}`;
   if (showScale) renderScale("rateScale", rated ? e.intensity : null, setRating);
   show("detail");
@@ -1471,11 +2016,16 @@ function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
 function exportCSV(){
   /* new columns are appended, so anything built on the old export keeps working */
   const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
-                "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note"];
+                "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note",
+                "reset_kind","tension_pre","tension_post_breath","tension_post_walk",
+                "reset_minutes","walked","head_after_walk","back_early_reason"];
   const rows = entries.map(e=>[
     e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
     e.notMine, e.intensity, e.partial ? "yes" : "",
-    e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note
+    e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note,
+    e.reset?.kind, e.reset?.pre, e.reset?.post, e.reset?.after,
+    typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : "",
+    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.mind, e.reset?.reason
   ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }
@@ -1533,6 +2083,10 @@ function toast(msg){
   /* opportunistic only: in an Artifact, climate.html's store isn't reachable */
   const m = await store.load(MKEY, "");
   climateLine = typeof m === "string" ? m : "";
+  /* voices arrive asynchronously on most engines, and on some only after the first
+     getVoices() call — so ask now and again when the list lands */
+  pickVoice();
+  try{ window.speechSynthesis.addEventListener("voiceschanged", pickVoice); }catch(e){}
   renderChips();
   renderReference();
   renderHome();

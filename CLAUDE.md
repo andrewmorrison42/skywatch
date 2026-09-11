@@ -28,7 +28,7 @@ shared code between them — see the duplication warning below.
 **Screens** (each app is a set of `.screen` divs switched by a `show(id)` router):
 
 - `index.html` — `home`, `entry`, `quick`, `followup`, `afterglow`, `breathe`,
-  `detail`, `plan`, `weathered`, `reference`
+  `away`, `detail`, `plan`, `weathered`, `reference`
 - `climate.html` — `home`, `entry`, `checkin`, `close`, `detail`, `guide`,
   `ledger`, `mantra`, `outcome`
 
@@ -70,10 +70,12 @@ export and re-import; their entries do not follow them.
 { id, ts, situation, thoughts, feeling, patterns[], facts, control,
   friend, notMine, intensity,
   partial?, updated?,                       // partial: saved via the quick path
-  followUp?: { ts, intensity, helped[], note } }
+  followUp?: { ts, intensity, helped[], note },
+  reset?: { kind, pre, post, after, mind,   // kind: "away" | "desk" — see The reset path
+            ms, walked, override, reason } }
 ```
 
-`index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
+`index.html` plan — `PLAN_LISTS` is `["truth","signs","works","worse","noDecide","tell"]`,
 plus `opener` and `line` strings. Always read through `normalizePlan()`
 (`index.html:705`), which coerces anything malformed into a valid shape. Reuse
 that defensive pattern rather than trusting stored JSON.
@@ -120,11 +122,146 @@ Thresholds at `index.html:857-862`:
 | `MIN_PAIRS` | 3 | Below this, say nothing at all |
 | `MIN_TIME` | 4 | A median duration needs this many pairs |
 | `MIN_HELPED` | 3 | A coping chip must recur this often before it's named |
+| `AWAY_MIN_MS` | 90s | Below this, a reset is recorded but doesn't vote in the stat |
+| `MIN_AWAY` | 5 | Before/after taken five minutes apart needs more pairs than a storm pair |
 
 **These floors are a safety decision, not tuning.** They exist so the app stays
 silent rather than making a confident claim off two data points. Do not lower
 them to make the stat appear sooner — an early, wrong reassurance is worse than
 an empty panel, because it teaches the user not to trust the number later.
+
+## The reset path
+
+The breaths do not end by forwarding into the writing form, and they do not begin
+cold either. Both flows now open on a reading, run the breaths, and ask again — three
+moments on one scale, all three folded into the `breathe` screen as `#breathPre`,
+`#breathBody` and `#breathRate`. The first is one tap with a skip; nothing is demanded
+before any relief.
+
+**The gate** (`needsWalk()`) routes on the second reading, two ways in:
+
+- still at or above `plan.resetAt`, or
+- it came in at or above `plan.resetAt` and the breathing moved it less than
+  `plan.minDrop`.
+
+The second clause is the one that matters. A threshold alone waves through the case the
+whole path exists for — a storm that came in high and did not move is going through the
+motions, whatever number it stopped at. The clause is deliberately limited to storms that
+came in high, so a flat 2 is never sent out for a walk.
+
+`away` is four states in one screen (`#awayLead`, `#awayDark`, `#awayWhy`, `#awayRate`),
+toggled by `hidden`, never navigated between. The lead-in is the one place in either app
+where `plan.works` is rendered as something to *read* rather than tapped as a chip. The
+dark state has nothing to consume: no countdown, no progress bar, one line, and an
+"I'm back" that only appears if you tap.
+
+### Things that will bite
+
+**Elapsed is always `Date.now()` minus `awayStart`, never a count of ticks.** A locked or
+backgrounded phone throttles timers to a stop; counting ticks would let a five-minute
+walk be reported off ninety seconds of foreground time. `visibilitychange` recomputes on
+resume.
+
+**The end signal is best-effort.** `navigator.wakeLock` keeps the page alive where the
+platform allows it; the chime is generated with Web Audio from an `AudioContext` built on
+the Start tap (iOS grants audio no other way) and `navigator.vibrate` where it exists.
+None of it is load-bearing — the state change driven by the timestamp is. **Never fetch
+an audio file for this**; it would be the app's first outbound request.
+
+**`intensity` is the storm's height, not the eased number.** `stormLevel()` returns the
+earliest reading (`pre`, falling back to `post`), and that is what the form pre-fills and
+what gets saved. Writing the post-walk number there would quietly walk every successful
+reset back into `stormStats()` as a smaller storm.
+
+**A prefilled number is not something the user typed.** `quickSeed`/`entrySeed` hold it
+and the discard prompts compare against those — otherwise backing out of an untouched
+form asks "Discard this?" of someone who wrote nothing.
+
+**The walk's authority is the user's own rule, not the app's judgement.** The lead-in
+states the rule as it was written in fair weather — *"Your rule, written calm: at 6 or
+above, you walk."* — and deliberately does not name the current number or argue for going.
+The barrier this addresses is stated plainly by the user: at high distress it is hard to
+*justify* stepping away, and a distressed brain cannot generate the justification. So the
+app supplies the one they already wrote, rather than asking them to produce a new one.
+Never replace this with a case for walking; the moment it argues, it is persuading rather
+than reflecting.
+
+**`plan.walkLine` is the load-bearing element of that screen, not decoration.** It sits
+directly under the heading, above the route and the rule, because the blocker is a
+standard applied to oneself that would never be applied to anyone else — the default line
+(*"You'd send a team member for this walk. Same rule."*) names that asymmetry rather than
+arguing. It is the same move as the `friend` field on the long form and `pickEcho()` in
+the afterglow: hand back the user's own words, said about someone else. Keep the ordering;
+demoting this line below the logistics guts the screen.
+
+**The app does not comment on the user's self-judgement.** Naming an asymmetry the user
+has stated is reflecting; telling them they are hard on themselves is a clinical claim and
+belongs to their psychologist, not to a web page. No copy anywhere should praise, reassure,
+or diagnose.
+
+**`mind` is not the number.** The post-walk check-in asks the 0–10 scale *and*
+`MIND` — how the head itself is. They come apart: back at 6 and thinking straight is a
+different afternoon from 4 and still churning. Both are optional; `"Can't tell"` is a real
+answer and is excluded from the stat rather than counted as a failure.
+
+**Coming back early costs a tap, never a justification.** `#awayWhy` offers four chips and
+an optional line, with a skip. It records `override` and `reason` honestly. There is no
+lock on "I'm back", and no copy anywhere compares the elapsed time to what was asked for —
+that friction is the line between recording a pattern and shaming someone at 9/10.
+
+**Still up narrows the ask; it never removes it.** `applySteerGate()` swaps the steer
+label to *"One small thing — not the pile, that keeps. Something you could do badly and it
+would still be fine"* whenever the latest reading is at or above `plan.resetAt`, and shows
+`worksBlock()` alongside. `plan.noDecide` is already rendered below as "Not today" and is
+the pile-shield. This shape comes from the user's own answer to what he would do for
+someone who came back still stressed: give them one easy thing and take the pile off them.
+An earlier version hid the field entirely — that was withholding, which is the opposite
+move. Nothing is said about why the wording changed; a sentence explaining it would turn a
+design decision into a comment on how the user is doing.
+
+**Speech is device-only, and that is a privacy constraint, not a preference.** The truth
+lines can be read aloud — the user says they land differently spoken than read, and on the
+walk reading is impossible anyway. But several browsers back `speechSynthesis` with a cloud
+service, so handing it a sentence posts that sentence to a third party. `pickVoice()`
+therefore filters on `voice.localService` and pins the chosen voice explicitly rather than
+trusting the default, which may be remote. **No local voice means no button** — a missing
+affordance is honest, a tap that silently does nothing is not, and a tap that quietly
+uploads his own words would break the promise the rest of this file keeps. Never call
+`speak()` without a pinned local voice, and never add an autoplay: every utterance follows
+a tap, which is also what iOS requires.
+
+**`kindEcho()` is the only place the app is warm, and it is never warm in its own voice.**
+It quotes one line of `plan.truth` and returns **empty** when there is none. Never add a
+generated affirmation, never attribute a shipped default to the user, and never read
+`friend` — see the guardrail above. The user is harder on himself than on anyone else; a
+stranger's reassurance is worthless against that, and his own deliberate sentence is not.
+`truthPick` is set once per flow so the line does not reshuffle under him on every tap.
+
+**`saveResetOnly()` exists because a walk with no report would otherwise vanish.** It
+writes the existing `partial:true` shape, so the session still renders on home, opens in
+detail, and can collect a follow-up later.
+
+### What the stat may and may not say
+
+`resetStat()` reports counts and the two moves separately, each behind `MIN_AWAY`. It
+must never:
+
+- divide one arm by the other, or call the difference an effect — the walk only ever
+  happens on the storms that were already worse, so the arms are not comparable, and the
+  copy says so out loud;
+- report a rate of walks taken versus skipped. That is a compliance score, and a low one
+  would land as a verdict on a bad week;
+- tot `mind` up into a clearer-versus-not tally. It is recorded and shown on the entry
+  itself, where it is the user's own note. Aggregated, it becomes a score of how often the
+  reset "worked" — which is exactly the shape this user's inner critic reaches for. This
+  was built once and removed at his request; do not rebuild it.
+
+### Settings
+
+`plan.route`, `plan.walkLine`, `plan.resetAt`, `plan.minDrop` and `plan.walkMins` live on
+the `plan` screen and go through `normalizePlan()`, which fills defaults and clamps the
+numbers via `num()`. These are personal tuning. The **stat** floors — `MIN_PAIRS`,
+`MIN_TIME`, `MIN_HELPED`, `MIN_AWAY`, `AWAY_MIN_MS` — are not, and must stay hard-coded.
 
 ## The reminder path
 
@@ -165,10 +302,21 @@ their own inconsistency. A gap is information, not a lapse.
 what they should do, or what will happen. It reflects their data back. Avoid
 anything that reads as a prognosis.
 
-**Echo the user's own words.** The afterglow uses `pickEcho()`
-(`index.html:1128`) to quote what the user themselves wrote in a past entry,
-rather than a generic affirmation. Their own sentence carries weight a platitude
-cannot. Preserve this whenever adding supportive copy.
+**Echo the user's own words — but not just any of them.** `pickEcho()` and `kindEcho()`
+quote the user rather than offering a generic affirmation, because their own sentence
+carries weight a platitude cannot. Preserve that whenever adding supportive copy.
+
+**What they may not quote is `friend`.** That field asks what you'd say to a mate in the
+same situation, and this user answers it with *"what's the next thing — keep performing."*
+The prompt invited advice, so it got advice; handing it back on the afterglow or mid-storm
+turned a supportive surface into a demand, and reinforced the exact move the reset path
+exists to interrupt. Both echoes now read only from `plan.truth` — written deliberately,
+in fair weather, for this job — falling through to `plan.line` and then `CLOSERS`. The
+`friend` field itself stays, in the report, the detail view and the exports: it is an
+honest record of what he says to himself, which is worth having. It is simply never
+reassurance. **Do not reinstate it as an echo source.** The app cannot sort a user's own
+sentences into kind and unkind — that is a judgement about them it has no standing to
+make, and the reason the deliberate field exists.
 
 **Never fabricate crisis resources.** Do not invent helpline numbers, hours, or
 service names. If crisis signposting is added, verify every detail against
@@ -196,6 +344,13 @@ decision, or read a paragraph. The `quick` path exists precisely for this.
 ## Conventions
 
 - One self-contained file per app; HTML, CSS, and JS all inline.
+- Everything is one flat top-level scope — there are no modules and no IIFEs around the
+  app code, so **a duplicate `function` name silently replaces the earlier one**. This has
+  already happened once (`say()` for speech versus `say()` for number formatting, which
+  broke speech with no error anywhere). Grep before naming a new helper.
+- `[hidden]{display:none!important}` is in the stylesheet on purpose: `.btn` sets
+  `display:block`, and an author rule beats the UA sheet's `[hidden]`, so the attribute is
+  inert on buttons without it.
 - Vanilla JS. No framework, no bundler, no package manager.
 - Screens are `.screen` divs; `show(id)` swaps them.
 - All storage calls are `async` (the Artifact backend is promise-based) — `await`

@@ -109,12 +109,14 @@
   }
 
   /* the beat after the breaths, and the step away */
-  #breathRate{margin-top:10px}
-  #breathRate .scale,#breathRate .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
+  #breathRate,#breathPre{margin-top:10px}
+  #breathRate .scale,#breathRate .scale-ends,
+  #breathPre .scale,#breathPre .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
   #away{display:none;align-items:center;justify-content:center;text-align:center}
   #away.active{display:flex}
   .away-wrap{width:100%}
   .away-wrap .detail-block{text-align:left}
+  .away-wrap textarea{text-align:left}
   #awayScale,#away .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
   .away-line{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--cloud)}
   /* nothing to read, nothing to watch — the screen stops being somewhere to be */
@@ -245,6 +247,9 @@
   .grounding{margin-top:10px}
   .grounding li{list-style:none;padding:9px 0;border-bottom:1px solid var(--ridge);font-size:1.02rem}
   .grounding li:last-child{border-bottom:none}
+  .settings{display:grid;grid-template-columns:1fr 80px;gap:10px 12px;align-items:center;margin-top:10px}
+  .settings label{color:var(--cloud);font-size:.95rem}
+  .settings input{min-height:46px;text-align:center;padding:10px}
   .setup{margin:10px 0 0 18px;color:#AAB9CC;font-size:.9rem}
   .setup li{padding:4px 0}
   .setup b{color:var(--cloud);font-weight:600}
@@ -292,6 +297,15 @@
 <!-- ============ BREATHE ============ -->
 <section class="screen" id="breathe">
   <div class="breathe-wrap">
+    <!-- the reading the breaths are measured against -->
+    <div id="breathPre" hidden>
+      <div class="eyebrow">First</div>
+      <h2>Where is it right now?</h2>
+      <p class="sub">One tap. Body and mind together.</p>
+      <div class="scale" id="preScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+      <button class="btn quiet" style="margin-top:18px" onclick="startBreaths()">Skip &mdash; just breathe</button>
+    </div>
     <div id="breathBody">
       <div class="eyebrow">Before you write</div>
       <h2 id="breathTitle">Five slow breaths</h2>
@@ -307,7 +321,7 @@
     <!-- the breaths used to end by forwarding straight into the form; they end here instead -->
     <div id="breathRate" hidden>
       <div class="eyebrow" id="breathRateLead">That's five</div>
-      <h2>Where is it now?</h2>
+      <h2 id="breathRateAsk">Where is it now?</h2>
       <div class="scale" id="breathScale" role="group" aria-label="Intensity, 0 to 10"></div>
       <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
     </div>
@@ -322,9 +336,10 @@
   <div class="away-wrap">
 
     <div id="awayLead">
-      <div class="eyebrow">Five minutes</div>
+      <div class="eyebrow" id="awayMins">Five minutes</div>
       <h2>Leave the work phone on the desk.</h2>
-      <p class="sub">Stand up. Go somewhere else. This one comes with you and says when it's up.</p>
+      <p class="sub" id="awayRoute"></p>
+      <p class="anchor-line" id="awayLine" style="margin-top:18px"></p>
       <div id="awayWorks"></div>
       <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
       <button class="btn quiet" style="margin-top:4px" onclick="awaySkip()">Write it down instead</button>
@@ -335,11 +350,24 @@
       <button class="btn quiet" id="awayBackBtn" style="margin-top:34px;visibility:hidden" onclick="awayBack()">I'm back</button>
     </div>
 
+    <!-- friction, not a lock: one tap, and a way past it -->
+    <div id="awayWhy" hidden>
+      <div class="eyebrow">Back early</div>
+      <h2>What pulled you back?</h2>
+      <p class="sub">Worth knowing later. Skip it if you'd rather.</p>
+      <div class="chips" id="whyChips" style="margin-top:12px;justify-content:center"></div>
+      <textarea id="fWhy" style="margin-top:12px" placeholder="Or say it in your own words"></textarea>
+      <div style="margin-top:20px"><button class="btn" onclick="saveWhy()">Done</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="skipWhy()">Skip</button>
+    </div>
+
     <div id="awayRate" hidden>
       <div class="eyebrow">Back</div>
       <h2>Where is it now?</h2>
       <div class="scale" id="awayScale" role="group" aria-label="Intensity, 0 to 10"></div>
       <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+      <div style="margin-top:24px"><button class="btn" onclick="goWrite()">Write it down</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="saveResetOnly()">Just save the number</button>
     </div>
 
   </div>
@@ -374,11 +402,12 @@
     <textarea id="fQuickLine"></textarea>
   </div>
 
-  <div class="field">
+  <div class="field" id="quickSteerField">
     <label class="f">One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small></label>
     <div class="chips" id="quickSteer" style="margin-bottom:8px"></div>
     <textarea id="fQuickSteer"></textarea>
   </div>
+  <div id="quickStill"></div>
 
   <div id="quickPlan"></div>
 
@@ -535,6 +564,25 @@
   <div class="listwrap">
     <label class="f" for="pOpener">The opening line<small>The exact words you send. Written now, so there's nothing to compose later.</small></label>
     <textarea id="pOpener" style="min-height:52px" placeholder="e.g. Bad head today, not after advice — can you talk for ten minutes?"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pRoute">The walk<small>Where you go for five minutes. Somewhere you don't have to decide about.</small></label>
+    <textarea id="pRoute" style="min-height:52px" placeholder="e.g. to the end of the road and back"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pWalkLine">What to tell yourself about going<small>Shown on the walk screen. Write the version that actually lands.</small></label>
+    <textarea id="pWalkLine" style="min-height:52px"></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f">When a walk is the path<small>After the breaths, Skywatch sends you for a walk if it's still at or above the first number &mdash; or if it came in that high and the breathing moved it less than the second.</small></label>
+    <div class="settings">
+      <label for="pResetAt">Still at or above</label><input type="number" id="pResetAt" min="0" max="10" inputmode="numeric">
+      <label for="pMinDrop">Or moved less than</label><input type="number" id="pMinDrop" min="0" max="10" inputmode="numeric">
+      <label for="pWalkMins">Walk for (minutes)</label><input type="number" id="pWalkMins" min="1" max="60" inputmode="numeric">
+    </div>
   </div>
 
   <div style="margin-top:28px">
@@ -750,6 +798,7 @@ let quickIntensity = null;
 /* a prefilled number isn't something the user typed — the discard prompts compare against it */
 let entrySeed = null;
 let quickSeed = null;
+let preAt = null;         /* the reading the breaths are measured against */
 let breathAt = null;      /* the number tapped on the beat the breaths run into */
 let pendingReset = null;  /* built on the reset path, consumed by whichever save comes next */
 let awayStart = null;     /* Date.now() stamp — elapsed is always derived from this, never counted */
@@ -762,11 +811,21 @@ let fuId = null;
 
 /* ---------- storm plan ---------- */
 const PLAN_LISTS = ["signs","works","worse","noDecide","tell"];
+/* the walk screen's own line, if you haven't written one */
+const WALK_LINE = "You'd send a team member for this walk. Same rule.";
+const num = (v, dflt, lo, hi) =>
+  (typeof v === "number" && isFinite(v)) ? Math.min(hi, Math.max(lo, Math.round(v))) : dflt;
 function normalizePlan(raw){
   const p = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
   const out = { v:1, updated: typeof p.updated === "string" ? p.updated : "",
                 opener: typeof p.opener === "string" ? p.opener : "",
-                line:   typeof p.line   === "string" ? p.line   : "" };
+                line:   typeof p.line   === "string" ? p.line   : "",
+                route:    typeof p.route    === "string" ? p.route    : "",
+                walkLine: typeof p.walkLine === "string" && p.walkLine.trim() ? p.walkLine : WALK_LINE,
+                /* tuning, not a safety floor — unlike the stat floors below, these are yours */
+                resetAt:  num(p.resetAt,  6,  0, 10),
+                minDrop:  num(p.minDrop,  2,  0, 10),
+                walkMins: num(p.walkMins, 5,  1, 60) };
   PLAN_LISTS.forEach(k=>{
     out[k] = Array.isArray(p[k]) ? p[k].filter(x=>typeof x === "string" && x.trim()).map(x=>x.trim()) : [];
   });
@@ -781,6 +840,11 @@ function planLines(s){
 function renderPlan(){
   document.getElementById("pLine").value     = plan.line;
   document.getElementById("pOpener").value   = plan.opener;
+  document.getElementById("pRoute").value    = plan.route;
+  document.getElementById("pWalkLine").value = plan.walkLine;
+  document.getElementById("pResetAt").value  = plan.resetAt;
+  document.getElementById("pMinDrop").value  = plan.minDrop;
+  document.getElementById("pWalkMins").value = plan.walkMins;
   PLAN_LISTS.forEach(k=>{
     document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value = plan[k].join("\n");
   });
@@ -796,8 +860,13 @@ function useClimateLine(){
   document.getElementById("mantraOffer").innerHTML = "";
 }
 async function savePlan(){
-  plan.line   = document.getElementById("pLine").value.trim();
-  plan.opener = document.getElementById("pOpener").value.trim();
+  plan.line     = document.getElementById("pLine").value.trim();
+  plan.opener   = document.getElementById("pOpener").value.trim();
+  plan.route    = document.getElementById("pRoute").value.trim();
+  plan.walkLine = document.getElementById("pWalkLine").value.trim() || WALK_LINE;
+  plan.resetAt  = num(parseInt(document.getElementById("pResetAt").value, 10),  6, 0, 10);
+  plan.minDrop  = num(parseInt(document.getElementById("pMinDrop").value, 10),  2, 0, 10);
+  plan.walkMins = num(parseInt(document.getElementById("pWalkMins").value, 10), 5, 1, 60);
   PLAN_LISTS.forEach(k=>{
     plan[k] = planLines(document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value);
   });
@@ -868,6 +937,7 @@ const WORDS = {full:"Five", quick:"Three"};
 function startBreathe(mode){
   flowMode = mode === "quick" ? "quick" : "full";
   editingId = null;
+  preAt = null;
   breathAt = null;
   pendingReset = null;
   resetBreatheScreen();
@@ -879,17 +949,49 @@ function startBreathe(mode){
     ? esc(plan.line)
     : "Look at the sky.<br>Don't get pulled into the weather.";
   document.getElementById("breatheStat").innerHTML = renderStat(null);
+  document.getElementById("breathPre").hidden = false;
+  document.getElementById("breathBody").hidden = true;
+  renderScale("preScale", null, i=>{ preAt = i; startBreaths(); });
   show("breathe");
+}
+/* one tap, and a way past it — nothing here is owed before the breathing starts */
+function startBreaths(){
+  document.getElementById("breathPre").hidden = true;
+  document.getElementById("breathBody").hidden = false;
+  document.getElementById("breatheStat").innerHTML = renderStat(preAt);
   runBreaths();
 }
 /* the Skip button is an explicit "get me to the page" — it stays a straight line */
-function skipBreath(){ goWrite(null); }
-function goWrite(n){
+function skipBreath(){ goWrite(); }
+function newReset(kind){
+  return { kind, pre:preAt, post:breathAt, after:null, ms:0,
+           walked:false, override:false, reason:"" };
+}
+/* the storm's height is the earliest reading, not the one taken after it eased —
+   writing the post-reset number here would walk every reset back into stormStats()
+   as a smaller storm */
+function stormLevel(){ return preAt !== null ? preAt : breathAt; }
+function goWrite(){
+  const n = stormLevel();
   if (typeof n === "number"){
     if (flowMode === "quick"){ quickIntensity = quickSeed = n; drawQuickScale(); }
     else { entryIntensity = entrySeed = n; drawEntryScale(); }
   }
+  applySteerGate();
   show(flowMode === "quick" ? "quick" : "entry");
+}
+function latestReading(){
+  if (pendingReset && typeof pendingReset.after === "number") return pendingReset.after;
+  if (typeof breathAt === "number") return breathAt;
+  return preAt;
+}
+/* While it's still up, the app doesn't hand you a next action — it hands back what you
+   wrote when it was calm. Nothing is said about why; the field is simply not there. */
+function applySteerGate(){
+  const n = latestReading();
+  const gated = typeof n === "number" && n >= plan.resetAt;
+  document.getElementById("quickSteerField").hidden = gated;
+  document.getElementById("quickStill").innerHTML = gated ? worksBlock() : "";
 }
 /* The beat the breaths run into. One number — the same one the report was going to
    ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
@@ -899,18 +1001,28 @@ function endBreaths(){
   document.getElementById("breathBody").hidden = true;
   document.getElementById("skipBtn").style.visibility = "hidden";
   document.getElementById("breathRateLead").textContent = `That's ${WORDS[flowMode].toLowerCase()}`;
+  document.getElementById("breathRateAsk").textContent = preAt === null ? "Where is it now?" : "And now?";
   document.getElementById("breathRate").hidden = false;
   drawBreathScale();
+}
+/* Two ways in. The level on its own waves through the case this path exists for —
+   a storm that came in high and didn't move is going through the motions, whatever
+   number it stopped at. The drop clause only applies to storms that came in high,
+   so a flat 2 is never sent out for a walk. */
+function needsWalk(pre, post){
+  if (typeof post !== "number") return false;
+  if (post >= plan.resetAt) return true;
+  return typeof pre === "number" && pre >= plan.resetAt && (pre - post) < plan.minDrop;
 }
 function drawBreathScale(){
   renderScale("breathScale", breathAt, i=>{
     breathAt = i;
     drawBreathScale();
-    pendingReset = { kind:"desk", before:i, after:null, ms:0 };
-    /* at or above the band the step away is the path, not an offer — and nothing is
-       said about the number, because a remark on how high it is lands as a telling-off */
+    pendingReset = newReset("desk");
+    /* the walk is the path, not an offer — and nothing is said about the number,
+       because a remark on how high it is lands as a telling-off */
     clearBreathe();
-    breatheTimer = setTimeout(()=> i >= HIGH ? startAway() : goWrite(i), 340);
+    breatheTimer = setTimeout(()=> needsWalk(preAt, i) ? startAway() : goWrite(), 340);
   });
 }
 function runBreaths(){
@@ -948,26 +1060,37 @@ function clearBreathe(){
 /* show() runs this on the way in as well as the way out, so startBreathe() restores
    the screen rather than leaving it in whatever state the last visit ended in */
 function resetBreatheScreen(){
+  document.getElementById("breathPre").hidden = true;
   document.getElementById("breathBody").hidden = false;
   document.getElementById("breathRate").hidden = true;
 }
 
 /* ---------- five minutes off the desk ---------- */
-/* Long enough that the body comes down off it, short enough to agree to at 9/10.
-   Anything less is more breathing at the desk, which is what this interrupts. */
-const AWAY_MS = 5*60000;
 /* No seconds, no counter: a screen worth watching is a screen you don't put down. */
 const AWAY_TICK = 10000;
+const WHY = ["Called away","It passed","Couldn't do it","Forgot"];
+/* how long the walk is meant to be, in ms — yours to set on the plan screen */
+function walkMs(){ return plan.walkMins * 60000; }
 
 function startAway(){
   clearBreathe();
-  pendingReset = { kind:"away", before:breathAt, after:null, ms:0 };
+  pendingReset = newReset("away");
   armChime();                 /* must happen inside the tap — iOS allows audio no other way */
+  document.getElementById("awayMins").textContent =
+    `${plan.walkMins} minute${plan.walkMins === 1 ? "" : "s"}`;
+  document.getElementById("awayRoute").textContent = plan.route
+    ? `Stand up. Walk ${plan.route}. This one comes with you and says when it's up.`
+    : "Stand up. Go somewhere else. This one comes with you and says when it's up.";
+  document.getElementById("awayLine").textContent = plan.walkLine;
   document.getElementById("awayWorks").innerHTML = worksBlock();
   awayState("awayLead");
   show("away");               /* show() clears the stamp, so it is set afterwards */
 }
-function awaySkip(){ clearAway(); pendingReset = { kind:"desk", before:breathAt, after:null, ms:0 }; goWrite(breathAt); }
+function awaySkip(){
+  clearAway();
+  pendingReset = newReset("desk");
+  goWrite();
+}
 function awayGo(){
   armChime();
   awayState("awayDark");
@@ -984,21 +1107,53 @@ function awayElapsed(){ return awayStart ? Math.max(0, Date.now() - awayStart) :
 function awayTick(){
   if (awayTimer){ clearTimeout(awayTimer); awayTimer = null; }
   if (!awayStart) return;
-  const left = AWAY_MS - awayElapsed();
+  const left = walkMs() - awayElapsed();
   if (left <= 0){ chime(); awayBack(); return; }
   awayTimer = setTimeout(awayTick, Math.min(left, AWAY_TICK));
 }
 function awayBack(){
-  if (pendingReset) pendingReset.ms = awayElapsed();
+  const ms = awayElapsed();
+  const full = ms >= walkMs();
+  if (pendingReset){
+    pendingReset.ms = ms;
+    pendingReset.walked = full;
+    pendingReset.override = !full;
+  }
   clearAway();
+  /* coming back early costs a tap, never a justification — the chips are optional
+     and skippable, and no copy anywhere compares the time to what was asked for */
+  if (full) return askAfter();
+  document.getElementById("fWhy").value = "";
+  drawWhyChips();
+  awayState("awayWhy");
+}
+function drawWhyChips(){
+  renderChipList("whyChips", WHY,
+    t => !!pendingReset && pendingReset.reason === t,
+    t => { if (pendingReset) pendingReset.reason = (pendingReset.reason === t) ? "" : t;
+           drawWhyChips(); });
+}
+function saveWhy(){
+  const typed = document.getElementById("fWhy").value.trim();
+  if (pendingReset && typed) pendingReset.reason = typed;
+  askAfter();
+}
+function skipWhy(){ askAfter(); }
+/* the scale here only records — both ways on stay reachable, so the walk can end
+   without the app insisting on a report to close it */
+function askAfter(){
   awayState("awayRate");
-  renderScale("awayScale", null, i=>{
-    if (pendingReset) pendingReset.after = i;
-    goWrite(breathAt);        /* the storm's number stays the one from before the reset */
+  drawAfterScale();
+}
+function drawAfterScale(){
+  renderScale("awayScale", pendingReset ? pendingReset.after : null, i=>{
+    if (pendingReset) pendingReset.after = (pendingReset.after === i) ? null : i;
+    drawAfterScale();
+    applySteerGate();
   });
 }
 function awayState(id){
-  ["awayLead","awayDark","awayRate"].forEach(x=>{
+  ["awayLead","awayDark","awayWhy","awayRate"].forEach(x=>{
     document.getElementById(x).hidden = (x !== id);
   });
 }
@@ -1113,25 +1268,42 @@ function stormStats(at){
               .sort((a,b) => b[1] - a[1]).slice(0,2).map(([t]) => t)
   };
 }
-function awayPairs(){
-  return entries.filter(e => e.reset && e.reset.kind === "away"
-    && typeof e.reset.before === "number" && typeof e.reset.after === "number"
-    && typeof e.reset.ms === "number" && e.reset.ms >= AWAY_MIN_MS);
+function resetSessions(){ return entries.filter(e => e.reset && typeof e.reset === "object"); }
+function drops(list, a, b){
+  return list.filter(e => typeof e.reset[a] === "number" && typeof e.reset[b] === "number")
+             .map(e => e.reset[a] - e.reset[b]);
 }
-/* Counts what happened, and nothing more. It does not claim stepping away beats staying
-   at the desk: there is no at-desk arm, and building one out of the storms where you
-   chose not to step away would compare two different kinds of day and call it evidence. */
-function awayStat(){
-  const p = awayPairs();
-  if (p.length < MIN_AWAY) return "";
-  const down = p.filter(e => e.reset.after < e.reset.before);
-  const head = `You've stepped away ${p.length} times and given it a number both sides.`;
-  if (!down.length) return `<div class="stat">${head} It hasn't come down yet.</div>`;
-  const drop = median(down.map(e => e.reset.before - e.reset.after));
-  const rest = p.length - down.length;
-  return `<div class="stat">${head} It came down ${down.length} of them, typically by ${
-    String(Math.round(drop*10)/10).replace(/\.0$/,"")}.${
-    rest ? `<span class="then">The other ${rest} it stayed where it was.</span>` : ""}</div>`;
+function say(n){ return String(Math.round(n*10)/10).replace(/\.0$/,""); }
+/* Counts what happened, and reports the two moves separately. It does NOT divide one by
+   the other or call the difference an effect: the walk only ever happens on the storms
+   that were already worse, so the two arms are not comparable and the copy says so. A
+   rate of walks taken versus skipped is deliberately absent — that is a compliance score,
+   and a low one would land as a verdict on a bad week. */
+function resetStat(){
+  const all    = resetSessions();
+  const routed = all.filter(e => e.reset.kind === "away");
+  const breath = drops(all, "pre", "post");
+  const walk   = drops(routed.filter(e => typeof e.reset.ms === "number" && e.reset.ms >= AWAY_MIN_MS),
+                       "post", "after");
+  if (routed.length < MIN_AWAY && breath.length < MIN_AWAY) return "";
+
+  const bits = [];
+  if (routed.length >= MIN_AWAY){
+    const walked = routed.filter(e => e.reset.walked).length;
+    const early  = routed.length - walked;
+    bits.push(`Sent out for a walk ${routed.length} times. You went ${walked}${
+      early ? `, came back early ${early}` : ""}.`);
+  }
+  const moves = [];
+  if (breath.length >= MIN_AWAY) moves.push(`Breathing moved it ${say(median(breath))} across ${breath.length}`);
+  if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${say(median(walk))} more across ${walk.length}`);
+  if (moves.length) bits.push(moves.join(", ") + ".");
+  if (!bits.length) return "";
+
+  const both = breath.length >= MIN_AWAY && walk.length >= MIN_AWAY;
+  return `<div class="stat">${bits.join(" ")}${both
+    ? `<span class="then">Not a comparison — the walk only happens on the storms that were already worse.</span>`
+    : ""}</div>`;
 }
 /* The crisis surface is edited: with nothing yet come down, a count would land as
    proof it never does. The archive stays unedited — see the Weathered screen. */
@@ -1382,6 +1554,8 @@ function worksBlock(){
 function resetQuick(){
   ["fQuickLine","fQuickSteer"].forEach(i=>document.getElementById(i).value="");
   quickIntensity = quickSeed = null;
+  document.getElementById("quickSteerField").hidden = false;
+  document.getElementById("quickStill").innerHTML = "";
   drawQuickScale();
   renderQuickSteer();
   const bits = [];
@@ -1436,6 +1610,24 @@ async function saveQuick(){
   entries.unshift(e);
   await store.save(KEY, entries);
   showAfterglow(e);
+}
+/* Without this a walk followed by closing the app records nothing, which is exactly
+   the session the log most wants. Reuses the partial shape the quick path already writes. */
+async function saveResetOnly(){
+  const n = stormLevel();
+  const e = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    situation:"", thoughts:"", feeling:"", patterns:[], facts:"",
+    control:"", friend:"", notMine:"",
+    intensity: typeof n === "number" ? n : null,
+    partial: true,
+  };
+  if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
+  entries.unshift(e);
+  await store.save(KEY, entries);
+  toast("Saved");
+  show("home");
 }
 function resumeEntry(id){
   const e = entries.find(x=>x.id === id); if (!e) return;
@@ -1581,7 +1773,7 @@ function renderWeathered(){
   const pairs = settledPairs();
   const el = document.getElementById("weatheredList");
   /* resets are counted separately from storm pairs — one can exist without the other */
-  const away = awayStat();
+  const away = resetStat();
   if (!pairs.length){
     el.innerHTML = away + `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
     return;
@@ -1684,11 +1876,14 @@ function openDetail(id){
        <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div></div>`
     : "";
   const r = e.reset;
+  const trail = r ? [r.pre, r.post, r.after].filter(x=>typeof x === "number") : [];
   const stepped = r && r.kind === "away" && typeof r.ms === "number"
-    ? `<div class="detail-block"><div class="eyebrow">Stepped away</div>
-       <div class="move">${typeof r.before === "number" && typeof r.after === "number"
-         ? `${r.before} \u2192 ${r.after} \u00B7 ${fmtDur(r.ms)}` : fmtDur(r.ms)}</div></div>`
-    : "";
+    ? `<div class="detail-block"><div class="eyebrow">Walked</div>
+       <div class="move">${trail.length > 1 ? trail.join(" \u2192 ") + " \u00B7 " : ""}${fmtDur(r.ms)}</div>
+       ${r.reason ? `<div class="sub" style="margin-top:4px">Back early: ${esc(r.reason)}</div>` : ""}</div>`
+    : (trail.length > 1
+        ? `<div class="detail-block"><div class="eyebrow">Breathing</div>
+           <div class="move">${trail.join(" \u2192 ")}</div></div>` : "");
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>
     ${rated ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10${
@@ -1721,13 +1916,15 @@ function exportCSV(){
   /* new columns are appended, so anything built on the old export keeps working */
   const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
                 "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note",
-                "reset_kind","reset_before","reset_after","reset_minutes"];
+                "reset_kind","tension_pre","tension_post_breath","tension_post_walk",
+                "reset_minutes","walked","back_early_reason"];
   const rows = entries.map(e=>[
     e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
     e.notMine, e.intensity, e.partial ? "yes" : "",
     e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note,
-    e.reset?.kind, e.reset?.before, e.reset?.after,
-    typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : ""
+    e.reset?.kind, e.reset?.pre, e.reset?.post, e.reset?.after,
+    typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : "",
+    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.reason
   ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }

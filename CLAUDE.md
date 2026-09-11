@@ -71,7 +71,8 @@ export and re-import; their entries do not follow them.
   friend, notMine, intensity,
   partial?, updated?,                       // partial: saved via the quick path
   followUp?: { ts, intensity, helped[], note },
-  reset?: { kind, before, after, ms } }     // kind: "away" | "desk" — see The reset path
+  reset?: { kind, pre, post, after, ms,     // kind: "away" | "desk" — see The reset path
+            walked, override, reason } }
 ```
 
 `index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
@@ -131,41 +132,83 @@ an empty panel, because it teaches the user not to trust the number later.
 
 ## The reset path
 
-The breaths do not end by forwarding into the writing form. They end on a beat — one
-tap on a 0–10 scale, folded into the `breathe` screen as `#breathRate` — and **the flow
-routes on that number**: at `HIGH` or above it goes to `away`, below it goes straight to
-writing with the number pre-filled.
+The breaths do not end by forwarding into the writing form, and they do not begin
+cold either. Both flows now open on a reading, run the breaths, and ask again — three
+moments on one scale, all three folded into the `breathe` screen as `#breathPre`,
+`#breathBody` and `#breathRate`. The first is one tap with a skip; nothing is demanded
+before any relief.
 
-`away` is three states in one screen (`#awayLead`, `#awayDark`, `#awayRate`), toggled by
-`hidden`, never navigated between. The lead-in is the one place in either app where
-`plan.works` is rendered as something to *read* rather than tapped as a chip — everywhere
-else it is laundered through `steerOptions()`. The dark state deliberately has nothing to
-consume: no countdown, no progress bar, one line, and an "I'm back" button that only
-appears if you tap.
+**The gate** (`needsWalk()`) routes on the second reading, two ways in:
 
-Three things that will bite:
+- still at or above `plan.resetAt`, or
+- it came in at or above `plan.resetAt` and the breathing moved it less than
+  `plan.minDrop`.
 
-- **Elapsed is always `Date.now()` minus `awayStart`, never a count of ticks.** A locked
-  or backgrounded phone throttles timers to a stop; counting ticks would let a five-minute
-  reset be reported off ninety seconds of foreground time. `visibilitychange` recomputes
-  on resume.
-- **The end signal is best-effort.** `navigator.wakeLock` keeps the page alive where the
-  platform allows it; the chime is generated with Web Audio from an `AudioContext` built
-  on the Start tap (iOS grants audio no other way) and `navigator.vibrate` where it
-  exists. None of it is load-bearing — the state change driven by the timestamp is.
-  **Never fetch an audio file for this**; that would be the app's first outbound request.
-- **`intensity` stays the storm's number, not the post-reset one.** The form is pre-filled
-  with `reset.before`, and the number tapped on the way back is stored as `reset.after`.
-  Writing the lower post-reset number into `intensity` would quietly walk every reset back
-  into `stormStats()` as a smaller storm.
+The second clause is the one that matters. A threshold alone waves through the case the
+whole path exists for — a storm that came in high and did not move is going through the
+motions, whatever number it stopped at. The clause is deliberately limited to storms that
+came in high, so a flat 2 is never sent out for a walk.
 
-A prefilled number is not something the user typed, so `quickSeed`/`entrySeed` hold it and
-the discard prompts compare against those — otherwise backing out of an untouched form
-asks "Discard this?" of someone who wrote nothing.
+`away` is four states in one screen (`#awayLead`, `#awayDark`, `#awayWhy`, `#awayRate`),
+toggled by `hidden`, never navigated between. The lead-in is the one place in either app
+where `plan.works` is rendered as something to *read* rather than tapped as a chip. The
+dark state has nothing to consume: no countdown, no progress bar, one line, and an
+"I'm back" that only appears if you tap.
 
-`awayStat()` reports counts only. It does **not** compare stepping away against staying at
-the desk: there is no at-desk arm, and building one out of the storms where the user chose
-not to step away would compare two different kinds of day and call it evidence.
+### Things that will bite
+
+**Elapsed is always `Date.now()` minus `awayStart`, never a count of ticks.** A locked or
+backgrounded phone throttles timers to a stop; counting ticks would let a five-minute
+walk be reported off ninety seconds of foreground time. `visibilitychange` recomputes on
+resume.
+
+**The end signal is best-effort.** `navigator.wakeLock` keeps the page alive where the
+platform allows it; the chime is generated with Web Audio from an `AudioContext` built on
+the Start tap (iOS grants audio no other way) and `navigator.vibrate` where it exists.
+None of it is load-bearing — the state change driven by the timestamp is. **Never fetch
+an audio file for this**; it would be the app's first outbound request.
+
+**`intensity` is the storm's height, not the eased number.** `stormLevel()` returns the
+earliest reading (`pre`, falling back to `post`), and that is what the form pre-fills and
+what gets saved. Writing the post-walk number there would quietly walk every successful
+reset back into `stormStats()` as a smaller storm.
+
+**A prefilled number is not something the user typed.** `quickSeed`/`entrySeed` hold it
+and the discard prompts compare against those — otherwise backing out of an untouched
+form asks "Discard this?" of someone who wrote nothing.
+
+**Coming back early costs a tap, never a justification.** `#awayWhy` offers four chips and
+an optional line, with a skip. It records `override` and `reason` honestly. There is no
+lock on "I'm back", and no copy anywhere compares the elapsed time to what was asked for —
+that friction is the line between recording a pattern and shaming someone at 9/10.
+
+**The steer field is withheld by state, not by verdict.** `applySteerGate()` hides
+"One thing for you" whenever the latest reading is at or above `plan.resetAt`, and renders
+`worksBlock()` in its place. Nothing is said about why. Do not add an explanation — a
+sentence about why the field is missing turns a design decision into a comment on how the
+user is doing.
+
+**`saveResetOnly()` exists because a walk with no report would otherwise vanish.** It
+writes the existing `partial:true` shape, so the session still renders on home, opens in
+detail, and can collect a follow-up later.
+
+### What the stat may and may not say
+
+`resetStat()` reports counts and the two moves separately, each behind `MIN_AWAY`. It
+must never:
+
+- divide one arm by the other, or call the difference an effect — the walk only ever
+  happens on the storms that were already worse, so the arms are not comparable, and the
+  copy says so out loud;
+- report a rate of walks taken versus skipped. That is a compliance score, and a low one
+  would land as a verdict on a bad week.
+
+### Settings
+
+`plan.route`, `plan.walkLine`, `plan.resetAt`, `plan.minDrop` and `plan.walkMins` live on
+the `plan` screen and go through `normalizePlan()`, which fills defaults and clamps the
+numbers via `num()`. These are personal tuning. The **stat** floors — `MIN_PAIRS`,
+`MIN_TIME`, `MIN_HELPED`, `MIN_AWAY`, `AWAY_MIN_MS` — are not, and must stay hard-coded.
 
 ## The reminder path
 

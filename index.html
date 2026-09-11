@@ -409,8 +409,10 @@
     <textarea id="fQuickLine"></textarea>
   </div>
 
+  <div id="quickKind"></div>
+
   <div class="field" id="quickSteerField">
-    <label class="f">One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small></label>
+    <label class="f" id="quickSteerLabel">One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small></label>
     <div class="chips" id="quickSteer" style="margin-bottom:8px"></div>
     <textarea id="fQuickSteer"></textarea>
   </div>
@@ -992,13 +994,33 @@ function latestReading(){
   if (typeof breathAt === "number") return breathAt;
   return preAt;
 }
-/* While it's still up, the app doesn't hand you a next action — it hands back what you
-   wrote when it was calm. Nothing is said about why; the field is simply not there. */
+/* Still up is not a failed reset, and the answer to it is not to take the next step away.
+   Asked what he'd do for someone who came back still stressed, the user said: give them
+   one easy thing, and take the pile off them. So that is what this does — it narrows the
+   ask and shields the rest (`plan.noDecide` is already rendered below as "Not today").
+   It does not hide the field, and it says nothing about how they are doing. */
 function applySteerGate(){
   const n = latestReading();
-  const gated = typeof n === "number" && n >= plan.resetAt;
-  document.getElementById("quickSteerField").hidden = gated;
-  document.getElementById("quickStill").innerHTML = gated ? worksBlock() : "";
+  const still = typeof n === "number" && n >= plan.resetAt;
+  document.getElementById("quickSteerLabel").innerHTML = still
+    ? `One small thing<small>Not the pile &mdash; that keeps. Something you could do badly and it would still be fine.</small>`
+    : `One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small>`;
+  document.getElementById("quickStill").innerHTML = still ? worksBlock() : "";
+  document.getElementById("quickKind").innerHTML = still ? kindEcho() : "";
+}
+/* The app has no business being kind in its own voice — it would be a stranger telling a
+   distressed person how to feel. It has one legitimate move: hand back what this user
+   already wrote to someone else in the same spot. Their words, not ours. Nothing at all
+   if there are none — never a manufactured reassurance. */
+function kindEcho(){
+  const hit = entries.find(x=>(x.friend||"").trim());
+  /* the shipped default is ours, not theirs — attributing it to them would be a small lie
+     at the moment they are least able to catch it */
+  const own = plan.walkLine && plan.walkLine !== WALK_LINE ? plan.walkLine : "";
+  const t = hit ? hit.friend : own;
+  if (!t) return "";
+  return `<div class="stat" style="margin-top:20px"><span style="font-family:'Fraunces',serif">${esc(t)}</span>
+    <span class="then">${hit ? `You wrote that to a friend, ${fmtDate(hit.ts)}.` : "Your own line."}</span></div>`;
 }
 /* The beat the breaths run into. One number — the same one the report was going to
    ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
@@ -1320,12 +1342,9 @@ function resetStat(){
   if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${say(median(walk))} more across ${walk.length}`);
   if (moves.length) bits.push(moves.join(", ") + ".");
 
-  /* the number and the head are reported separately because they come apart */
-  const said = routed.filter(e => e.reset.mind && e.reset.mind !== "Can't tell");
-  if (said.length >= MIN_AWAY){
-    const clearer = said.filter(e => e.reset.mind === "Clearer").length;
-    bits.push(`You came back clearer ${clearer} of ${said.length}.`);
-  }
+  /* `mind` is recorded and shown on the entry itself, but never totted up into a
+     clearer-versus-not score. A tally of how often the reset "worked" is a thing to be
+     judged by, and this user is already harder on themselves than on anyone else. */
   if (!bits.length) return "";
 
   const both = breath.length >= MIN_AWAY && walk.length >= MIN_AWAY;
@@ -1582,8 +1601,8 @@ function worksBlock(){
 function resetQuick(){
   ["fQuickLine","fQuickSteer"].forEach(i=>document.getElementById(i).value="");
   quickIntensity = quickSeed = null;
-  document.getElementById("quickSteerField").hidden = false;
   document.getElementById("quickStill").innerHTML = "";
+  document.getElementById("quickKind").innerHTML = "";
   drawQuickScale();
   renderQuickSteer();
   const bits = [];

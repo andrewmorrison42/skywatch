@@ -209,11 +209,24 @@ an optional line, with a skip. It records `override` and `reason` honestly. Ther
 lock on "I'm back", and no copy anywhere compares the elapsed time to what was asked for —
 that friction is the line between recording a pattern and shaming someone at 9/10.
 
-**The steer field is withheld by state, not by verdict.** `applySteerGate()` hides
-"One thing for you" whenever the latest reading is at or above `plan.resetAt`, and renders
-`worksBlock()` in its place. Nothing is said about why. Do not add an explanation — a
-sentence about why the field is missing turns a design decision into a comment on how the
-user is doing.
+**Still up narrows the ask; it never removes it.** `applySteerGate()` swaps the steer
+label to *"One small thing — not the pile, that keeps. Something you could do badly and it
+would still be fine"* whenever the latest reading is at or above `plan.resetAt`, and shows
+`worksBlock()` alongside. `plan.noDecide` is already rendered below as "Not today" and is
+the pile-shield. This shape comes from the user's own answer to what he would do for
+someone who came back still stressed: give them one easy thing and take the pile off them.
+An earlier version hid the field entirely — that was withholding, which is the opposite
+move. Nothing is said about why the wording changed; a sentence explaining it would turn a
+design decision into a comment on how the user is doing.
+
+**`kindEcho()` is the only place the app is warm, and it is never warm in its own voice.**
+It hands back a past `friend` answer — the user's own words, written to someone else in
+the same spot — or a `walkLine` they actually wrote. It returns **empty** when there is
+nothing of theirs to quote, and deliberately will not fall back to the shipped default
+`WALK_LINE`, because attributing our line to them is a small lie told at the moment they
+are least able to catch it. Never add a generated affirmation here. The user is harder on
+himself than on anyone else; a stranger's reassurance is worthless against that, and his
+own sentence is not.
 
 **`saveResetOnly()` exists because a walk with no report would otherwise vanish.** It
 writes the existing `partial:true` shape, so the session still renders on home, opens in
@@ -228,9 +241,11 @@ must never:
   happens on the storms that were already worse, so the arms are not comparable, and the
   copy says so out loud;
 - report a rate of walks taken versus skipped. That is a compliance score, and a low one
-  would land as a verdict on a bad week.
-
-It reports the number and the head separately, never combined into a single score.
+  would land as a verdict on a bad week;
+- tot `mind` up into a clearer-versus-not tally. It is recorded and shown on the entry
+  itself, where it is the user's own note. Aggregated, it becomes a score of how often the
+  reset "worked" — which is exactly the shape this user's inner critic reaches for. This
+  was built once and removed at his request; do not rebuild it.
 
 ### Settings
 

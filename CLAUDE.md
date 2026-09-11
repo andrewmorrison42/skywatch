@@ -219,6 +219,17 @@ An earlier version hid the field entirely — that was withholding, which is the
 move. Nothing is said about why the wording changed; a sentence explaining it would turn a
 design decision into a comment on how the user is doing.
 
+**Speech is device-only, and that is a privacy constraint, not a preference.** The truth
+lines can be read aloud — the user says they land differently spoken than read, and on the
+walk reading is impossible anyway. But several browsers back `speechSynthesis` with a cloud
+service, so handing it a sentence posts that sentence to a third party. `pickVoice()`
+therefore filters on `voice.localService` and pins the chosen voice explicitly rather than
+trusting the default, which may be remote. **No local voice means no button** — a missing
+affordance is honest, a tap that silently does nothing is not, and a tap that quietly
+uploads his own words would break the promise the rest of this file keeps. Never call
+`speak()` without a pinned local voice, and never add an autoplay: every utterance follows
+a tap, which is also what iOS requires.
+
 **`kindEcho()` is the only place the app is warm, and it is never warm in its own voice.**
 It quotes one line of `plan.truth` and returns **empty** when there is none. Never add a
 generated affirmation, never attribute a shipped default to the user, and never read
@@ -333,6 +344,13 @@ decision, or read a paragraph. The `quick` path exists precisely for this.
 ## Conventions
 
 - One self-contained file per app; HTML, CSS, and JS all inline.
+- Everything is one flat top-level scope — there are no modules and no IIFEs around the
+  app code, so **a duplicate `function` name silently replaces the earlier one**. This has
+  already happened once (`say()` for speech versus `say()` for number formatting, which
+  broke speech with no error anywhere). Grep before naming a new helper.
+- `[hidden]{display:none!important}` is in the stylesheet on purpose: `.btn` sets
+  `display:block`, and an author rule beats the UA sheet's `[hidden]`, so the attribute is
+  inert on buttons without it.
 - Vanilla JS. No framework, no bundler, no package manager.
 - Screens are `.screen` divs; `show(id)` swaps them.
 - All storage calls are `async` (the Artifact backend is promise-based) — `await`

@@ -201,6 +201,9 @@
   .toast.show{opacity:1}
   .note{margin-top:14px;font-size:.8rem;color:var(--mist)}
 
+  /* author styles beat the UA sheet, so .btn's own display would defeat [hidden] */
+  [hidden]{display:none!important}
+
   /* focus ring for the added buttons */
   button:focus-visible{outline:2px solid var(--sun);outline-offset:2px;border-radius:4px}
 
@@ -341,6 +344,7 @@
       <!-- the permission first, then the logistics — this line is what gets someone
            out of the chair, not the route and not the rule -->
       <p class="anchor-line" id="awayLine" style="margin-top:14px"></p>
+      <button class="btn quiet" id="saySome" hidden onclick="sayTruth()">Read it to me &mdash; then pocket it</button>
       <p class="sub" id="awayRoute" style="margin-top:16px"></p>
       <p class="sub" id="awayRule" style="margin-top:6px"></p>
       <div id="awayWorks"></div>
@@ -910,6 +914,7 @@ function renderPlanCard(){
 
 /* ---------- nav ---------- */
 function show(id){
+  hush();
   clearBreathe();
   clearAway();
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
@@ -1029,11 +1034,13 @@ function applySteerGate(){
    make. So it reads only from `plan.truth`, written deliberately in fair weather for this
    job. Nothing at all when that is empty — never a generated affirmation, and never
    `friend` again. */
+function truthLine(){ return plan.truth.length ? plan.truth[truthPick % plan.truth.length] : ""; }
 function kindEcho(){
-  const t = plan.truth.length ? plan.truth[truthPick % plan.truth.length] : "";
+  const t = truthLine();
   if (!t) return "";
   return `<div class="stat" style="margin-top:20px"><span style="font-family:'Fraunces',serif">${esc(t)}</span>
-    <span class="then">You wrote that when it was calm.</span></div>`;
+    <span class="then">You wrote that when it was calm.</span>
+    ${canSpeak() ? `<button class="btn quiet" style="text-align:left;padding:8px 0 0" onclick="sayLine()">Read it to me \u2192</button>` : ""}</div>`;
 }
 /* The beat the breaths run into. One number — the same one the report was going to
    ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
@@ -1107,6 +1114,38 @@ function resetBreatheScreen(){
   document.getElementById("breathRate").hidden = true;
 }
 
+/* ---------- saying it out loud ---------- */
+/* Reading is work at 8 out of 10, and these lines land differently spoken than read.
+   The catch: some browsers back speechSynthesis with a cloud service, so handing it a
+   sentence posts that sentence to a third party — which would quietly break the promise
+   the rest of this file keeps. `localService` is the filter, and the voice is pinned
+   explicitly rather than left to the default, which may be remote. No local voice means
+   no button at all: a missing affordance is honest, a silent tap is not. */
+let voice = null;
+function pickVoice(){
+  if (!("speechSynthesis" in window)) return null;
+  let local = [];
+  try{ local = speechSynthesis.getVoices().filter(v=>v.localService); }catch(e){ return null; }
+  const lang = (navigator.language || "en").slice(0,2);
+  voice = local.find(v=>String(v.lang).slice(0,2) === lang) || local[0] || null;
+  return voice;
+}
+function canSpeak(){ return !!voice; }
+function say(lines){
+  if (!canSpeak()) return;
+  try{
+    speechSynthesis.cancel();
+    [].concat(lines).filter(Boolean).forEach(t=>{
+      const u = new SpeechSynthesisUtterance(String(t));
+      u.voice = voice; u.lang = voice.lang; u.rate = 0.86;
+      speechSynthesis.speak(u);
+    });
+  }catch(e){}
+}
+function hush(){ try{ if ("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){} }
+function sayTruth(){ say(plan.truth); }
+function sayLine(){ say(truthLine()); }
+
 /* ---------- five minutes off the desk ---------- */
 /* No seconds, no counter: a screen worth watching is a screen you don't put down. */
 const AWAY_TICK = 10000;
@@ -1132,6 +1171,7 @@ function startAway(){
     : "Stand up. Go somewhere else. This one comes with you and says when it's up.";
   document.getElementById("awayLine").textContent = plan.walkLine;
   document.getElementById("awayWorks").innerHTML = worksBlock();
+  document.getElementById("saySome").hidden = !(canSpeak() && plan.truth.length);
   awayState("awayLead");
   show("away");               /* show() clears the stamp, so it is set afterwards */
 }
@@ -1329,7 +1369,7 @@ function drops(list, a, b){
   return list.filter(e => typeof e.reset[a] === "number" && typeof e.reset[b] === "number")
              .map(e => e.reset[a] - e.reset[b]);
 }
-function say(n){ return String(Math.round(n*10)/10).replace(/\.0$/,""); }
+function oneDp(n){ return String(Math.round(n*10)/10).replace(/\.0$/,""); }
 /* Counts what happened, and reports the two moves separately. It does NOT divide one by
    the other or call the difference an effect: the walk only ever happens on the storms
    that were already worse, so the two arms are not comparable and the copy says so. A
@@ -1351,8 +1391,8 @@ function resetStat(){
       early ? `, came back early ${early}` : ""}.`);
   }
   const moves = [];
-  if (breath.length >= MIN_AWAY) moves.push(`Breathing moved it ${say(median(breath))} across ${breath.length}`);
-  if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${say(median(walk))} more across ${walk.length}`);
+  if (breath.length >= MIN_AWAY) moves.push(`Breathing moved it ${oneDp(median(breath))} across ${breath.length}`);
+  if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${oneDp(median(walk))} more across ${walk.length}`);
   if (moves.length) bits.push(moves.join(", ") + ".");
 
   /* `mind` is recorded and shown on the entry itself, but never totted up into a
@@ -2043,6 +2083,10 @@ function toast(msg){
   /* opportunistic only: in an Artifact, climate.html's store isn't reachable */
   const m = await store.load(MKEY, "");
   climateLine = typeof m === "string" ? m : "";
+  /* voices arrive asynchronously on most engines, and on some only after the first
+     getVoices() call — so ask now and again when the list lands */
+  pickVoice();
+  try{ window.speechSynthesis.addEventListener("voiceschanged", pickVoice); }catch(e){}
   renderChips();
   renderReference();
   renderHome();

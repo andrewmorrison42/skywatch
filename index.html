@@ -476,7 +476,7 @@
   </div>
 
   <div class="field">
-    <label class="f" for="fFriend">To a friend<small>If a mate at work described this exact situation, what would I say to them?</small></label>
+    <label class="f" for="fFriend">To a friend<small>If a mate at work described this exact situation &mdash; not what they should do next. What's true about what they're carrying?</small></label>
     <textarea id="fFriend"></textarea>
   </div>
 
@@ -543,6 +543,13 @@
   <div class="listwrap">
     <label class="f" for="pLine">My line<small>One sentence you can say in your head. Short enough to hold at 8 out of 10.</small></label>
     <textarea id="pLine" style="min-height:52px" placeholder="e.g. This is weather. I don't have to answer it today."></textarea>
+  </div>
+
+  <div class="listwrap">
+    <label class="f" for="pTruth">When it's a lot<small>The things that are true and go missing at 8 out of 10. Facts about the load, not encouragement &mdash; and not what to do about it. One per line.</small></label>
+    <textarea id="pTruth" placeholder="e.g. I'm carrying a lot right now, so I'm not going to be perfect at it.
+A good part of this isn't mine to carry.
+Not everything has to be fixed today."></textarea>
   </div>
 
   <div class="listwrap">
@@ -807,6 +814,7 @@ let quickIntensity = null;
 /* a prefilled number isn't something the user typed — the discard prompts compare against it */
 let entrySeed = null;
 let quickSeed = null;
+let truthPick = 0;        /* chosen once per flow — a line that reshuffles mid-form reads as noise */
 let preAt = null;         /* the reading the breaths are measured against */
 let breathAt = null;      /* the number tapped on the beat the breaths run into */
 let pendingReset = null;  /* built on the reset path, consumed by whichever save comes next */
@@ -819,7 +827,7 @@ let fuHelped = new Set();
 let fuId = null;
 
 /* ---------- storm plan ---------- */
-const PLAN_LISTS = ["signs","works","worse","noDecide","tell"];
+const PLAN_LISTS = ["truth","signs","works","worse","noDecide","tell"];
 /* the walk screen's own line, if you haven't written one */
 const WALK_LINE = "You'd send a team member for this walk. Same rule.";
 const num = (v, dflt, lo, hi) =>
@@ -946,6 +954,7 @@ const WORDS = {full:"Five", quick:"Three"};
 function startBreathe(mode){
   flowMode = mode === "quick" ? "quick" : "full";
   editingId = null;
+  truthPick = Math.floor(Math.random()*1e6);
   preAt = null;
   breathAt = null;
   pendingReset = null;
@@ -1009,18 +1018,22 @@ function applySteerGate(){
   document.getElementById("quickKind").innerHTML = still ? kindEcho() : "";
 }
 /* The app has no business being kind in its own voice — it would be a stranger telling a
-   distressed person how to feel. It has one legitimate move: hand back what this user
-   already wrote to someone else in the same spot. Their words, not ours. Nothing at all
-   if there are none — never a manufactured reassurance. */
+   distressed person how to feel. Its one legitimate move is to hand back what this user
+   wrote himself.
+
+   This used to quote past `friend` answers. That was wrong. Asked what he'd say to a mate
+   in the same spot, he answers "what's the next thing" — keep performing. The prompt
+   invited advice, so it got advice, and quoting it back at 7 out of 10 reinforced the
+   exact move this whole path exists to interrupt. The app cannot sort a user's own
+   sentences into kind and unkind; that is a judgement about him it has no standing to
+   make. So it reads only from `plan.truth`, written deliberately in fair weather for this
+   job. Nothing at all when that is empty — never a generated affirmation, and never
+   `friend` again. */
 function kindEcho(){
-  const hit = entries.find(x=>(x.friend||"").trim());
-  /* the shipped default is ours, not theirs — attributing it to them would be a small lie
-     at the moment they are least able to catch it */
-  const own = plan.walkLine && plan.walkLine !== WALK_LINE ? plan.walkLine : "";
-  const t = hit ? hit.friend : own;
+  const t = plan.truth.length ? plan.truth[truthPick % plan.truth.length] : "";
   if (!t) return "";
   return `<div class="stat" style="margin-top:20px"><span style="font-family:'Fraunces',serif">${esc(t)}</span>
-    <span class="then">${hit ? `You wrote that to a friend, ${fmtDate(hit.ts)}.` : "Your own line."}</span></div>`;
+    <span class="then">You wrote that when it was calm.</span></div>`;
 }
 /* The beat the breaths run into. One number — the same one the report was going to
    ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
@@ -1575,15 +1588,15 @@ function showAfterglow(justSaved){
 }
 /* your own words first; the borrowed ones only while there are none */
 function pickEcho(justSaved){
-  const pats = new Set(justSaved.patterns || []);
-  const pool = entries.filter(x=>x.id !== justSaved.id && (x.friend||"").trim());
-  const same = pool.find(x=>(x.patterns||[]).some(p=>pats.has(p)));
-  const hit = same || pool[0];
-  if (hit){
-    const p = (hit.patterns||[]).find(x=>pats.has(x));
-    return { t: hit.friend, by: `You \u2014 ${fmtDate(hit.ts)}`,
-             lead: p ? `What you wrote last time ${pname(p).toLowerCase()} showed up` : "What you wrote before" };
-  }
+  /* ahead of `friend` for the reason given on kindEcho() — these were written for this
+     job, and the friend answers were written in a register that does not do it */
+  if (plan.truth.length)
+    return { t: plan.truth[truthPick % plan.truth.length], by: "Your own words",
+             lead: "What's true when it's a lot" };
+  /* `friend` used to be quoted here. It is no longer read by any supportive surface — see
+     kindEcho(). The field and its history stay: they are an honest record of what he
+     actually says to himself, which is worth having. They are just not reassurance, and
+     handing them back as if they were made this screen land as a demand. */
   if (plan.line) return { t: plan.line, by: "Your line", lead: "From the plan" };
   const c = CLOSERS[Math.floor(Math.random()*CLOSERS.length)];
   return { t: c, by: "", lead: "Report filed. Weather noted." };

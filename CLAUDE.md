@@ -75,7 +75,7 @@ export and re-import; their entries do not follow them.
             ms, walked, override, reason } }
 ```
 
-`index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
+`index.html` plan — `PLAN_LISTS` is `["truth","signs","works","worse","noDecide","tell"]`,
 plus `opener` and `line` strings. Always read through `normalizePlan()`
 (`index.html:705`), which coerces anything malformed into a valid shape. Reuse
 that defensive pattern rather than trusting stored JSON.
@@ -220,13 +220,11 @@ move. Nothing is said about why the wording changed; a sentence explaining it wo
 design decision into a comment on how the user is doing.
 
 **`kindEcho()` is the only place the app is warm, and it is never warm in its own voice.**
-It hands back a past `friend` answer — the user's own words, written to someone else in
-the same spot — or a `walkLine` they actually wrote. It returns **empty** when there is
-nothing of theirs to quote, and deliberately will not fall back to the shipped default
-`WALK_LINE`, because attributing our line to them is a small lie told at the moment they
-are least able to catch it. Never add a generated affirmation here. The user is harder on
-himself than on anyone else; a stranger's reassurance is worthless against that, and his
-own sentence is not.
+It quotes one line of `plan.truth` and returns **empty** when there is none. Never add a
+generated affirmation, never attribute a shipped default to the user, and never read
+`friend` — see the guardrail above. The user is harder on himself than on anyone else; a
+stranger's reassurance is worthless against that, and his own deliberate sentence is not.
+`truthPick` is set once per flow so the line does not reshuffle under him on every tap.
 
 **`saveResetOnly()` exists because a walk with no report would otherwise vanish.** It
 writes the existing `partial:true` shape, so the session still renders on home, opens in
@@ -293,10 +291,21 @@ their own inconsistency. A gap is information, not a lapse.
 what they should do, or what will happen. It reflects their data back. Avoid
 anything that reads as a prognosis.
 
-**Echo the user's own words.** The afterglow uses `pickEcho()`
-(`index.html:1128`) to quote what the user themselves wrote in a past entry,
-rather than a generic affirmation. Their own sentence carries weight a platitude
-cannot. Preserve this whenever adding supportive copy.
+**Echo the user's own words — but not just any of them.** `pickEcho()` and `kindEcho()`
+quote the user rather than offering a generic affirmation, because their own sentence
+carries weight a platitude cannot. Preserve that whenever adding supportive copy.
+
+**What they may not quote is `friend`.** That field asks what you'd say to a mate in the
+same situation, and this user answers it with *"what's the next thing — keep performing."*
+The prompt invited advice, so it got advice; handing it back on the afterglow or mid-storm
+turned a supportive surface into a demand, and reinforced the exact move the reset path
+exists to interrupt. Both echoes now read only from `plan.truth` — written deliberately,
+in fair weather, for this job — falling through to `plan.line` and then `CLOSERS`. The
+`friend` field itself stays, in the report, the detail view and the exports: it is an
+honest record of what he says to himself, which is worth having. It is simply never
+reassurance. **Do not reinstate it as an echo source.** The app cannot sort a user's own
+sentences into kind and unkind — that is a judgement about them it has no standing to
+make, and the reason the deliberate field exists.
 
 **Never fabricate crisis resources.** Do not invent helpline numbers, hours, or
 service names. If crisis signposting is added, verify every detail against

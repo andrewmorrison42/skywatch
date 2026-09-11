@@ -338,9 +338,11 @@
     <div id="awayLead">
       <div class="eyebrow" id="awayMins">Five minutes</div>
       <h2>Leave the work phone on the desk.</h2>
-      <p class="sub" id="awayRule"></p>
-      <p class="sub" id="awayRoute" style="margin-top:8px"></p>
-      <p class="anchor-line" id="awayLine" style="margin-top:18px"></p>
+      <!-- the permission first, then the logistics — this line is what gets someone
+           out of the chair, not the route and not the rule -->
+      <p class="anchor-line" id="awayLine" style="margin-top:14px"></p>
+      <p class="sub" id="awayRoute" style="margin-top:16px"></p>
+      <p class="sub" id="awayRule" style="margin-top:6px"></p>
       <div id="awayWorks"></div>
       <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
       <button class="btn quiet" style="margin-top:4px" onclick="awaySkip()">Write it down instead</button>
@@ -577,7 +579,7 @@
   </div>
 
   <div class="listwrap">
-    <label class="f" for="pWalkLine">What to tell yourself about going<small>Shown on the walk screen. Write the version that actually lands.</small></label>
+    <label class="f" for="pWalkLine">What to tell yourself about going<small>Shown on the walk screen, at the moment it's hardest to justify. The version that lands is usually the one you'd say to someone else &mdash; so write that one.</small></label>
     <textarea id="pWalkLine" style="min-height:52px"></textarea>
   </div>
 

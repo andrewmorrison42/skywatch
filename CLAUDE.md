@@ -186,6 +186,19 @@ app supplies the one they already wrote, rather than asking them to produce a ne
 Never replace this with a case for walking; the moment it argues, it is persuading rather
 than reflecting.
 
+**`plan.walkLine` is the load-bearing element of that screen, not decoration.** It sits
+directly under the heading, above the route and the rule, because the blocker is a
+standard applied to oneself that would never be applied to anyone else — the default line
+(*"You'd send a team member for this walk. Same rule."*) names that asymmetry rather than
+arguing. It is the same move as the `friend` field on the long form and `pickEcho()` in
+the afterglow: hand back the user's own words, said about someone else. Keep the ordering;
+demoting this line below the logistics guts the screen.
+
+**The app does not comment on the user's self-judgement.** Naming an asymmetry the user
+has stated is reflecting; telling them they are hard on themselves is a clinical claim and
+belongs to their psychologist, not to a web page. No copy anywhere should praise, reassure,
+or diagnose.
+
 **`mind` is not the number.** The post-walk check-in asks the 0–10 scale *and*
 `MIND` — how the head itself is. They come apart: back at 6 and thinking straight is a
 different afternoon from 4 and still churning. Both are optional; `"Can't tell"` is a real

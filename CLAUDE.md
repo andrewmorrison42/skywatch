@@ -71,8 +71,8 @@ export and re-import; their entries do not follow them.
   friend, notMine, intensity,
   partial?, updated?,                       // partial: saved via the quick path
   followUp?: { ts, intensity, helped[], note },
-  reset?: { kind, pre, post, after, ms,     // kind: "away" | "desk" — see The reset path
-            walked, override, reason } }
+  reset?: { kind, pre, post, after, mind,   // kind: "away" | "desk" — see The reset path
+            ms, walked, override, reason } }
 ```
 
 `index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
@@ -177,6 +177,20 @@ reset back into `stormStats()` as a smaller storm.
 and the discard prompts compare against those — otherwise backing out of an untouched
 form asks "Discard this?" of someone who wrote nothing.
 
+**The walk's authority is the user's own rule, not the app's judgement.** The lead-in
+states the rule as it was written in fair weather — *"Your rule, written calm: at 6 or
+above, you walk."* — and deliberately does not name the current number or argue for going.
+The barrier this addresses is stated plainly by the user: at high distress it is hard to
+*justify* stepping away, and a distressed brain cannot generate the justification. So the
+app supplies the one they already wrote, rather than asking them to produce a new one.
+Never replace this with a case for walking; the moment it argues, it is persuading rather
+than reflecting.
+
+**`mind` is not the number.** The post-walk check-in asks the 0–10 scale *and*
+`MIND` — how the head itself is. They come apart: back at 6 and thinking straight is a
+different afternoon from 4 and still churning. Both are optional; `"Can't tell"` is a real
+answer and is excluded from the stat rather than counted as a failure.
+
 **Coming back early costs a tap, never a justification.** `#awayWhy` offers four chips and
 an optional line, with a skip. It records `override` and `reason` honestly. There is no
 lock on "I'm back", and no copy anywhere compares the elapsed time to what was asked for —
@@ -202,6 +216,8 @@ must never:
   copy says so out loud;
 - report a rate of walks taken versus skipped. That is a compliance score, and a low one
   would land as a verdict on a bad week.
+
+It reports the number and the head separately, never combined into a single score.
 
 ### Settings
 

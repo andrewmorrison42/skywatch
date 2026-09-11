@@ -338,7 +338,8 @@
     <div id="awayLead">
       <div class="eyebrow" id="awayMins">Five minutes</div>
       <h2>Leave the work phone on the desk.</h2>
-      <p class="sub" id="awayRoute"></p>
+      <p class="sub" id="awayRule"></p>
+      <p class="sub" id="awayRoute" style="margin-top:8px"></p>
       <p class="anchor-line" id="awayLine" style="margin-top:18px"></p>
       <div id="awayWorks"></div>
       <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
@@ -366,6 +367,10 @@
       <h2>Where is it now?</h2>
       <div class="scale" id="awayScale" role="group" aria-label="Intensity, 0 to 10"></div>
       <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+
+      <p class="sub" style="margin-top:24px">And the head itself?</p>
+      <div class="chips" id="mindChips" style="margin-top:8px;justify-content:center"></div>
+
       <div style="margin-top:24px"><button class="btn" onclick="goWrite()">Write it down</button></div>
       <button class="btn quiet" style="margin-top:4px" onclick="saveResetOnly()">Just save the number</button>
     </div>
@@ -964,7 +969,7 @@ function startBreaths(){
 /* the Skip button is an explicit "get me to the page" — it stays a straight line */
 function skipBreath(){ goWrite(); }
 function newReset(kind){
-  return { kind, pre:preAt, post:breathAt, after:null, ms:0,
+  return { kind, pre:preAt, post:breathAt, after:null, mind:"", ms:0,
            walked:false, override:false, reason:"" };
 }
 /* the storm's height is the earliest reading, not the one taken after it eased —
@@ -1069,6 +1074,9 @@ function resetBreatheScreen(){
 /* No seconds, no counter: a screen worth watching is a screen you don't put down. */
 const AWAY_TICK = 10000;
 const WHY = ["Called away","It passed","Couldn't do it","Forgot"];
+/* the number says how loud it is; this says whether the head cleared. They come apart —
+   back at 6 and thinking straight is a different afternoon from 4 and still churning. */
+const MIND = ["Clearer","Much the same","Still churning","Can't tell"];
 /* how long the walk is meant to be, in ms — yours to set on the plan screen */
 function walkMs(){ return plan.walkMins * 60000; }
 
@@ -1078,6 +1086,10 @@ function startAway(){
   armChime();                 /* must happen inside the tap — iOS allows audio no other way */
   document.getElementById("awayMins").textContent =
     `${plan.walkMins} minute${plan.walkMins === 1 ? "" : "s"}`;
+  /* Not "you are high", which reads as a telling-off, and not an argument for going —
+     just the rule, as it was written in fair weather, by the person best placed to write it. */
+  document.getElementById("awayRule").textContent =
+    `Your rule, written calm: at ${plan.resetAt} or above, you walk.`;
   document.getElementById("awayRoute").textContent = plan.route
     ? `Stand up. Walk ${plan.route}. This one comes with you and says when it's up.`
     : "Stand up. Go somewhere else. This one comes with you and says when it's up.";
@@ -1144,6 +1156,13 @@ function skipWhy(){ askAfter(); }
 function askAfter(){
   awayState("awayRate");
   drawAfterScale();
+  drawMindChips();
+}
+function drawMindChips(){
+  renderChipList("mindChips", MIND,
+    t => !!pendingReset && pendingReset.mind === t,
+    t => { if (pendingReset) pendingReset.mind = (pendingReset.mind === t) ? "" : t;
+           drawMindChips(); });
 }
 function drawAfterScale(){
   renderScale("awayScale", pendingReset ? pendingReset.after : null, i=>{
@@ -1298,6 +1317,13 @@ function resetStat(){
   if (breath.length >= MIN_AWAY) moves.push(`Breathing moved it ${say(median(breath))} across ${breath.length}`);
   if (walk.length   >= MIN_AWAY) moves.push(`a walk moved it ${say(median(walk))} more across ${walk.length}`);
   if (moves.length) bits.push(moves.join(", ") + ".");
+
+  /* the number and the head are reported separately because they come apart */
+  const said = routed.filter(e => e.reset.mind && e.reset.mind !== "Can't tell");
+  if (said.length >= MIN_AWAY){
+    const clearer = said.filter(e => e.reset.mind === "Clearer").length;
+    bits.push(`You came back clearer ${clearer} of ${said.length}.`);
+  }
   if (!bits.length) return "";
 
   const both = breath.length >= MIN_AWAY && walk.length >= MIN_AWAY;
@@ -1880,6 +1906,7 @@ function openDetail(id){
   const stepped = r && r.kind === "away" && typeof r.ms === "number"
     ? `<div class="detail-block"><div class="eyebrow">Walked</div>
        <div class="move">${trail.length > 1 ? trail.join(" \u2192 ") + " \u00B7 " : ""}${fmtDur(r.ms)}</div>
+       ${r.mind ? `<div class="sub" style="margin-top:4px">Head after: ${esc(r.mind)}</div>` : ""}
        ${r.reason ? `<div class="sub" style="margin-top:4px">Back early: ${esc(r.reason)}</div>` : ""}</div>`
     : (trail.length > 1
         ? `<div class="detail-block"><div class="eyebrow">Breathing</div>
@@ -1917,14 +1944,14 @@ function exportCSV(){
   const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
                 "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note",
                 "reset_kind","tension_pre","tension_post_breath","tension_post_walk",
-                "reset_minutes","walked","back_early_reason"];
+                "reset_minutes","walked","head_after_walk","back_early_reason"];
   const rows = entries.map(e=>[
     e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
     e.notMine, e.intensity, e.partial ? "yes" : "",
     e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note,
     e.reset?.kind, e.reset?.pre, e.reset?.post, e.reset?.after,
     typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : "",
-    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.reason
+    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.mind, e.reset?.reason
   ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }

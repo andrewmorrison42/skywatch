@@ -108,6 +108,19 @@
     .orb{transition:none}
   }
 
+  /* the beat after the breaths, and the step away */
+  #breathRate{margin-top:10px}
+  #breathRate .scale,#breathRate .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
+  #away{display:none;align-items:center;justify-content:center;text-align:center}
+  #away.active{display:flex}
+  .away-wrap{width:100%}
+  .away-wrap .detail-block{text-align:left}
+  #awayScale,#away .scale-ends{max-width:330px;margin-left:auto;margin-right:auto}
+  .away-line{font-family:'Fraunces',serif;font-size:1.45rem;color:var(--cloud)}
+  /* nothing to read, nothing to watch — the screen stops being somewhere to be */
+  #away.dark{background:#05080C}
+  #away.dark .away-line{color:#3E4C5E}
+
   /* form */
   .field{margin-top:20px}
   label.f{display:block;font-weight:600;font-size:1rem;margin-bottom:2px;color:#F4F7FB}
@@ -174,6 +187,7 @@
   .detail-block{margin-top:18px}
   .detail-block .eyebrow{margin-bottom:2px}
   .detail-block p{white-space:pre-wrap}
+  .detail-block .move{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.82rem;color:var(--mist);margin-top:4px}
   .danger{color:#E08A8A}
 
   .backlink{display:inline-block;color:var(--mist);font-size:.9rem;padding:6px 0;margin-bottom:8px}
@@ -278,19 +292,56 @@
 <!-- ============ BREATHE ============ -->
 <section class="screen" id="breathe">
   <div class="breathe-wrap">
-    <div class="eyebrow">Before you write</div>
-    <h2 id="breathTitle">Five slow breaths</h2>
-    <div class="skyfield">
-      <div class="ring"></div>
-      <div class="orb" id="orb"></div>
-      <div>
-        <div class="breath-word" id="breathWord">Breathe in</div>
+    <div id="breathBody">
+      <div class="eyebrow">Before you write</div>
+      <h2 id="breathTitle">Five slow breaths</h2>
+      <div class="skyfield">
+        <div class="ring"></div>
+        <div class="orb" id="orb"></div>
+        <div>
+          <div class="breath-word" id="breathWord">Breathe in</div>
+        </div>
       </div>
+      <div class="breath-count" id="breathCount">Breath 1 of 5</div>
     </div>
-    <div class="breath-count" id="breathCount">Breath 1 of 5</div>
+    <!-- the breaths used to end by forwarding straight into the form; they end here instead -->
+    <div id="breathRate" hidden>
+      <div class="eyebrow" id="breathRateLead">That's five</div>
+      <h2>Where is it now?</h2>
+      <div class="scale" id="breathScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+    </div>
     <p class="anchor-line" id="anchorLine">Look at the sky.<br>Don't get pulled into the weather.</p>
     <div id="breatheStat"></div>
     <button class="btn quiet" id="skipBtn" style="margin-top:18px;visibility:hidden" onclick="skipBreath()">Skip ahead</button>
+  </div>
+</section>
+
+<!-- ============ AWAY — five minutes off the desk ============ -->
+<section class="screen" id="away">
+  <div class="away-wrap">
+
+    <div id="awayLead">
+      <div class="eyebrow">Five minutes</div>
+      <h2>Leave the work phone on the desk.</h2>
+      <p class="sub">Stand up. Go somewhere else. This one comes with you and says when it's up.</p>
+      <div id="awayWorks"></div>
+      <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
+      <button class="btn quiet" style="margin-top:4px" onclick="awaySkip()">Write it down instead</button>
+    </div>
+
+    <div id="awayDark" hidden onclick="showAwayBack()">
+      <p class="away-line">Put it in your pocket.</p>
+      <button class="btn quiet" id="awayBackBtn" style="margin-top:34px;visibility:hidden" onclick="awayBack()">I'm back</button>
+    </div>
+
+    <div id="awayRate" hidden>
+      <div class="eyebrow">Back</div>
+      <h2>Where is it now?</h2>
+      <div class="scale" id="awayScale" role="group" aria-label="Intensity, 0 to 10"></div>
+      <div class="scale-ends"><span>0 &middot; fine</span><span>10 &middot; worst it gets</span></div>
+    </div>
+
   </div>
 </section>
 
@@ -324,7 +375,7 @@
   </div>
 
   <div class="field">
-    <label class="f">One thing to do next<small>From the plan, or type it. One thing — not a list.</small></label>
+    <label class="f">One thing for you<small>Not the work. From the plan, or type it &mdash; one thing.</small></label>
     <div class="chips" id="quickSteer" style="margin-bottom:8px"></div>
     <textarea id="fQuickSteer"></textarea>
   </div>
@@ -696,6 +747,15 @@ let flowMode = "full";
 let editingId = null;
 let entryIntensity = null;
 let quickIntensity = null;
+/* a prefilled number isn't something the user typed — the discard prompts compare against it */
+let entrySeed = null;
+let quickSeed = null;
+let breathAt = null;      /* the number tapped on the beat the breaths run into */
+let pendingReset = null;  /* built on the reset path, consumed by whichever save comes next */
+let awayStart = null;     /* Date.now() stamp — elapsed is always derived from this, never counted */
+let awayTimer = null;
+let awayLock = null;      /* screen wake lock, where the platform gives us one */
+let awayCtx = null;       /* AudioContext, built on the starting tap */
 let fuIntensity = null;
 let fuHelped = new Set();
 let fuId = null;
@@ -765,6 +825,7 @@ function renderPlanCard(){
 /* ---------- nav ---------- */
 function show(id){
   clearBreathe();
+  clearAway();
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   window.scrollTo(0,0);
@@ -807,6 +868,9 @@ const WORDS = {full:"Five", quick:"Three"};
 function startBreathe(mode){
   flowMode = mode === "quick" ? "quick" : "full";
   editingId = null;
+  breathAt = null;
+  pendingReset = null;
+  resetBreatheScreen();
   if (flowMode === "quick") resetQuick(); else resetForm();
   document.getElementById(flowMode === "quick" ? "quickStamp" : "entryStamp").textContent = fmt(new Date());
   document.getElementById("breathTitle").textContent = `${WORDS[flowMode]} slow breaths`;
@@ -818,7 +882,37 @@ function startBreathe(mode){
   show("breathe");
   runBreaths();
 }
-function skipBreath(){ show(flowMode === "quick" ? "quick" : "entry"); }
+/* the Skip button is an explicit "get me to the page" — it stays a straight line */
+function skipBreath(){ goWrite(null); }
+function goWrite(n){
+  if (typeof n === "number"){
+    if (flowMode === "quick"){ quickIntensity = quickSeed = n; drawQuickScale(); }
+    else { entryIntensity = entrySeed = n; drawEntryScale(); }
+  }
+  show(flowMode === "quick" ? "quick" : "entry");
+}
+/* The beat the breaths run into. One number — the same one the report was going to
+   ask for, moved earlier — and the flow routes on it. Nothing extra to answer. */
+function endBreaths(){
+  breathAt = null;
+  pendingReset = null;
+  document.getElementById("breathBody").hidden = true;
+  document.getElementById("skipBtn").style.visibility = "hidden";
+  document.getElementById("breathRateLead").textContent = `That's ${WORDS[flowMode].toLowerCase()}`;
+  document.getElementById("breathRate").hidden = false;
+  drawBreathScale();
+}
+function drawBreathScale(){
+  renderScale("breathScale", breathAt, i=>{
+    breathAt = i;
+    drawBreathScale();
+    pendingReset = { kind:"desk", before:i, after:null, ms:0 };
+    /* at or above the band the step away is the path, not an offer — and nothing is
+       said about the number, because a remark on how high it is lands as a telling-off */
+    clearBreathe();
+    breatheTimer = setTimeout(()=> i >= HIGH ? startAway() : goWrite(i), 340);
+  });
+}
 function runBreaths(){
   const orb = document.getElementById("orb");
   const word = document.getElementById("breathWord");
@@ -829,7 +923,7 @@ function runBreaths(){
   const IN = 4000, OUT = 6000;
 
   function cycle(){
-    if (breath > total){ skipBreath(); return; }
+    if (breath > total){ endBreaths(); return; }
     count.textContent = `Breath ${breath} of ${total}`;
     word.textContent = "Breathe in";
     orb.classList.add("in");
@@ -851,6 +945,113 @@ function clearBreathe(){
   if (breatheTimer){ clearTimeout(breatheTimer); breatheTimer = null; }
   document.getElementById("orb").classList.remove("in");
 }
+/* show() runs this on the way in as well as the way out, so startBreathe() restores
+   the screen rather than leaving it in whatever state the last visit ended in */
+function resetBreatheScreen(){
+  document.getElementById("breathBody").hidden = false;
+  document.getElementById("breathRate").hidden = true;
+}
+
+/* ---------- five minutes off the desk ---------- */
+/* Long enough that the body comes down off it, short enough to agree to at 9/10.
+   Anything less is more breathing at the desk, which is what this interrupts. */
+const AWAY_MS = 5*60000;
+/* No seconds, no counter: a screen worth watching is a screen you don't put down. */
+const AWAY_TICK = 10000;
+
+function startAway(){
+  clearBreathe();
+  pendingReset = { kind:"away", before:breathAt, after:null, ms:0 };
+  armChime();                 /* must happen inside the tap — iOS allows audio no other way */
+  document.getElementById("awayWorks").innerHTML = worksBlock();
+  awayState("awayLead");
+  show("away");               /* show() clears the stamp, so it is set afterwards */
+}
+function awaySkip(){ clearAway(); pendingReset = { kind:"desk", before:breathAt, after:null, ms:0 }; goWrite(breathAt); }
+function awayGo(){
+  armChime();
+  awayState("awayDark");
+  document.getElementById("away").classList.add("dark");
+  document.getElementById("awayBackBtn").style.visibility = "hidden";
+  awayStart = Date.now();
+  awayTick();
+  holdScreen();
+}
+function showAwayBack(){ document.getElementById("awayBackBtn").style.visibility = "visible"; }
+/* A backgrounded tab throttles timers and a locked screen stops them, so elapsed is
+   always the stamp subtracted from now — never a count of ticks that ran. */
+function awayElapsed(){ return awayStart ? Math.max(0, Date.now() - awayStart) : 0; }
+function awayTick(){
+  if (awayTimer){ clearTimeout(awayTimer); awayTimer = null; }
+  if (!awayStart) return;
+  const left = AWAY_MS - awayElapsed();
+  if (left <= 0){ chime(); awayBack(); return; }
+  awayTimer = setTimeout(awayTick, Math.min(left, AWAY_TICK));
+}
+function awayBack(){
+  if (pendingReset) pendingReset.ms = awayElapsed();
+  clearAway();
+  awayState("awayRate");
+  renderScale("awayScale", null, i=>{
+    if (pendingReset) pendingReset.after = i;
+    goWrite(breathAt);        /* the storm's number stays the one from before the reset */
+  });
+}
+function awayState(id){
+  ["awayLead","awayDark","awayRate"].forEach(x=>{
+    document.getElementById(x).hidden = (x !== id);
+  });
+}
+function clearAway(){
+  if (awayTimer){ clearTimeout(awayTimer); awayTimer = null; }
+  awayStart = null;
+  document.getElementById("away").classList.remove("dark");
+  dropScreen();
+}
+/* The wake lock is what makes the chime honest: iOS suspends an AudioContext the moment
+   the page stops being visible, so without it the tone silently never fires. Unsupported
+   or refused is a normal outcome — the copy simply stops promising a signal. */
+async function holdScreen(){
+  try{
+    if (!navigator.wakeLock || awayLock) return;
+    awayLock = await navigator.wakeLock.request("screen");
+    awayLock.addEventListener("release", ()=>{ awayLock = null; });
+  }catch(e){ awayLock = null; }
+}
+function dropScreen(){
+  if (awayLock){ try{ awayLock.release(); }catch(e){} awayLock = null; }
+}
+function armChime(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    awayCtx = awayCtx || new AC();
+    if (awayCtx.state === "suspended") awayCtx.resume();
+  }catch(e){ awayCtx = null; }
+}
+/* generated, not fetched — nothing here reaches the network */
+function chime(){
+  if (navigator.vibrate){ try{ navigator.vibrate([120,90,120]); }catch(e){} }
+  if (!awayCtx || awayCtx.state !== "running") return;
+  try{
+    const t = awayCtx.currentTime;
+    [396, 594].forEach((hz, i)=>{
+      const o = awayCtx.createOscillator(), g = awayCtx.createGain();
+      o.type = "sine"; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(i ? 0.03 : 0.06, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(g); g.connect(awayCtx.destination);
+      o.start(t); o.stop(t + 1.7);
+    });
+  }catch(e){}
+}
+/* the OS drops a wake lock whenever the page hides — retake it and recompute from the
+   stamp, so a locked screen can neither fake five minutes nor strand the reset */
+document.addEventListener("visibilitychange", ()=>{
+  if (document.visibilityState !== "visible" || !awayStart) return;
+  armChime(); holdScreen(); awayTick();
+});
 
 /* ---------- the evidence engine ---------- */
 const H = 3600000;
@@ -860,6 +1061,13 @@ const HIGH       = 7;
 const MIN_PAIRS  = 3;     /* below this, say nothing at all */
 const MIN_TIME   = 4;     /* a median duration needs this many */
 const MIN_HELPED = 3;     /* a chip must recur this often to be named */
+/* Back inside ninety seconds isn't a reset. It's still recorded — it's what happened —
+   but it doesn't get to vote in the stat. */
+const AWAY_MIN_MS = 90000;
+/* Higher than MIN_PAIRS, and not a copy of it. A storm pair compares two readings hours
+   apart; this compares two taken five minutes apart by someone who knows they have just
+   done the thing that is meant to help. A same-sitting before/after needs more of them. */
+const MIN_AWAY = 5;
 
 function needsCheck(e){
   if (typeof e.intensity !== "number" || e.followUp) return false;
@@ -904,6 +1112,26 @@ function stormStats(at){
     helped: [...tally.entries()].filter(([,c]) => c >= MIN_HELPED)
               .sort((a,b) => b[1] - a[1]).slice(0,2).map(([t]) => t)
   };
+}
+function awayPairs(){
+  return entries.filter(e => e.reset && e.reset.kind === "away"
+    && typeof e.reset.before === "number" && typeof e.reset.after === "number"
+    && typeof e.reset.ms === "number" && e.reset.ms >= AWAY_MIN_MS);
+}
+/* Counts what happened, and nothing more. It does not claim stepping away beats staying
+   at the desk: there is no at-desk arm, and building one out of the storms where you
+   chose not to step away would compare two different kinds of day and call it evidence. */
+function awayStat(){
+  const p = awayPairs();
+  if (p.length < MIN_AWAY) return "";
+  const down = p.filter(e => e.reset.after < e.reset.before);
+  const head = `You've stepped away ${p.length} times and given it a number both sides.`;
+  if (!down.length) return `<div class="stat">${head} It hasn't come down yet.</div>`;
+  const drop = median(down.map(e => e.reset.before - e.reset.after));
+  const rest = p.length - down.length;
+  return `<div class="stat">${head} It came down ${down.length} of them, typically by ${
+    String(Math.round(drop*10)/10).replace(/\.0$/,"")}.${
+    rest ? `<span class="then">The other ${rest} it stayed where it was.</span>` : ""}</div>`;
 }
 /* The crisis surface is edited: with nothing yet come down, a count would land as
    proof it never does. The archive stays unedited — see the Weathered screen. */
@@ -1034,7 +1262,7 @@ function resetForm(){
   ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
     .forEach(i=>document.getElementById(i).value="");
   selectedPatterns = new Set();
-  entryIntensity = null;
+  entryIntensity = entrySeed = null;
   document.getElementById("entryTitle").textContent = "Log the weather";
   drawEntryScale();
   renderChips();
@@ -1082,7 +1310,7 @@ function showChipInfo(p){
 }
 function confirmLeave(){
   const dirty = ["fSituation","fThoughts","fFeeling","fFacts","fControl","fFriend","fNotMine"]
-    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size || entryIntensity !== null;
+    .some(i=>document.getElementById(i).value.trim()) || selectedPatterns.size || entryIntensity !== entrySeed;
   const ask = editingId ? "Leave the rest for later?" : "Discard this report?";
   if (!dirty || confirm(ask)) show("home");
 }
@@ -1110,6 +1338,8 @@ async function saveEntry(){
       id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
       ts: new Date().toISOString(),
     }, fields);
+    /* only ever on a fresh report — a reset belongs to the storm it happened in */
+    if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
     entries.unshift(e);
   }
   await store.save(KEY, entries);
@@ -1141,9 +1371,17 @@ function pickEcho(justSaved){
 }
 
 /* ---------- the short path ---------- */
+/* the first place these words are read back rather than laundered into chips — picking
+   an action is exactly the move this path exists to delay */
+function worksBlock(){
+  if (!plan.works.length) return "";
+  return `<div class="detail-block"><div class="eyebrow">What actually works</div>
+    <p>${esc(plan.works.join("\n"))}</p>
+    <div class="sub" style="margin-top:6px">You wrote these when it was calm.</div></div>`;
+}
 function resetQuick(){
   ["fQuickLine","fQuickSteer"].forEach(i=>document.getElementById(i).value="");
-  quickIntensity = null;
+  quickIntensity = quickSeed = null;
   drawQuickScale();
   renderQuickSteer();
   const bits = [];
@@ -1179,7 +1417,7 @@ async function copyOpener(){
 }
 function confirmLeaveQuick(){
   const dirty = ["fQuickLine","fQuickSteer"].some(i=>document.getElementById(i).value.trim())
-                || quickIntensity !== null;
+                || quickIntensity !== quickSeed;
   if (!dirty || confirm("Discard this?")) show("home");
 }
 async function saveQuick(){
@@ -1194,12 +1432,14 @@ async function saveQuick(){
     intensity: quickIntensity,
     partial: true,
   };
+  if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
   entries.unshift(e);
   await store.save(KEY, entries);
   showAfterglow(e);
 }
 function resumeEntry(id){
   const e = entries.find(x=>x.id === id); if (!e) return;
+  pendingReset = null;
   resetForm();
   editingId = id;
   document.getElementById("entryTitle").textContent = "Add the rest";
@@ -1209,7 +1449,7 @@ function resumeEntry(id){
   set("fFacts", e.facts); set("fControl", e.control); set("fFriend", e.friend);
   set("fNotMine", e.notMine);
   selectedPatterns = new Set(e.patterns || []);
-  entryIntensity = typeof e.intensity === "number" ? e.intensity : null;
+  entryIntensity = entrySeed = typeof e.intensity === "number" ? e.intensity : null;
   drawEntryScale();
   renderChips();
   renderSteer();
@@ -1340,8 +1580,10 @@ function renderStatCard(){
 function renderWeathered(){
   const pairs = settledPairs();
   const el = document.getElementById("weatheredList");
+  /* resets are counted separately from storm pairs — one can exist without the other */
+  const away = awayStat();
   if (!pairs.length){
-    el.innerHTML = `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
+    el.innerHTML = away + `<p class="sub" style="margin-top:24px">Nothing settled yet. This fills up as you come back and say where one got to.</p>`;
     return;
   }
   /* chronological, both kinds, nothing hidden — the verdict is not the organising principle */
@@ -1356,7 +1598,7 @@ function renderWeathered(){
       ${e.followUp.note ? `<div class="said">${esc(e.followUp.note)}</div>` : ""}
     </div>`;
   };
-  el.innerHTML = pairs.map(row).join("");
+  el.innerHTML = away + pairs.map(row).join("");
 }
 
 async function importJSON(input){
@@ -1441,6 +1683,12 @@ function openDetail(id){
        <div class="scale" id="rateScale"></div>
        <div class="scale-ends"><span>0 · fine</span><span>10 · worst it gets</span></div></div>`
     : "";
+  const r = e.reset;
+  const stepped = r && r.kind === "away" && typeof r.ms === "number"
+    ? `<div class="detail-block"><div class="eyebrow">Stepped away</div>
+       <div class="move">${typeof r.before === "number" && typeof r.after === "number"
+         ? `${r.before} \u2192 ${r.after} \u00B7 ${fmtDur(r.ms)}` : fmtDur(r.ms)}</div></div>`
+    : "";
   document.getElementById("detailBody").innerHTML = `
     <div class="stamp">${fmt(e.ts)}</div>
     ${rated ? `<div class="eyebrow" style="margin-top:6px">Logged at ${e.intensity} out of 10${
@@ -1455,6 +1703,7 @@ function openDetail(id){
     ${blk("The facts", e.facts)}
     ${blk("To a friend", e.friend)}
     ${after}
+    ${stepped}
     ${e.partial ? `<div class="detail-block"><button class="btn ghost" onclick="resumeEntry('${e.id}')">Add the rest</button></div>` : ""}`;
   if (showScale) renderScale("rateScale", rated ? e.intensity : null, setRating);
   show("detail");
@@ -1471,11 +1720,14 @@ function csvCell(v){ return `"${String(v??"").replace(/"/g,'""')}"`; }
 function exportCSV(){
   /* new columns are appended, so anything built on the old export keeps working */
   const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
-                "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note"];
+                "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note",
+                "reset_kind","reset_before","reset_after","reset_minutes"];
   const rows = entries.map(e=>[
     e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
     e.notMine, e.intensity, e.partial ? "yes" : "",
-    e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note
+    e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note,
+    e.reset?.kind, e.reset?.before, e.reset?.after,
+    typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : ""
   ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }

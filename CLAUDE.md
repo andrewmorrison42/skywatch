@@ -28,7 +28,7 @@ shared code between them — see the duplication warning below.
 **Screens** (each app is a set of `.screen` divs switched by a `show(id)` router):
 
 - `index.html` — `home`, `entry`, `quick`, `followup`, `afterglow`, `breathe`,
-  `detail`, `plan`, `weathered`, `reference`
+  `away`, `detail`, `plan`, `weathered`, `reference`
 - `climate.html` — `home`, `entry`, `checkin`, `close`, `detail`, `guide`,
   `ledger`, `mantra`, `outcome`
 
@@ -70,7 +70,8 @@ export and re-import; their entries do not follow them.
 { id, ts, situation, thoughts, feeling, patterns[], facts, control,
   friend, notMine, intensity,
   partial?, updated?,                       // partial: saved via the quick path
-  followUp?: { ts, intensity, helped[], note } }
+  followUp?: { ts, intensity, helped[], note },
+  reset?: { kind, before, after, ms } }     // kind: "away" | "desk" — see The reset path
 ```
 
 `index.html` plan — `PLAN_LISTS` is `["signs","works","worse","noDecide","tell"]`,
@@ -120,11 +121,51 @@ Thresholds at `index.html:857-862`:
 | `MIN_PAIRS` | 3 | Below this, say nothing at all |
 | `MIN_TIME` | 4 | A median duration needs this many pairs |
 | `MIN_HELPED` | 3 | A coping chip must recur this often before it's named |
+| `AWAY_MIN_MS` | 90s | Below this, a reset is recorded but doesn't vote in the stat |
+| `MIN_AWAY` | 5 | Before/after taken five minutes apart needs more pairs than a storm pair |
 
 **These floors are a safety decision, not tuning.** They exist so the app stays
 silent rather than making a confident claim off two data points. Do not lower
 them to make the stat appear sooner — an early, wrong reassurance is worse than
 an empty panel, because it teaches the user not to trust the number later.
+
+## The reset path
+
+The breaths do not end by forwarding into the writing form. They end on a beat — one
+tap on a 0–10 scale, folded into the `breathe` screen as `#breathRate` — and **the flow
+routes on that number**: at `HIGH` or above it goes to `away`, below it goes straight to
+writing with the number pre-filled.
+
+`away` is three states in one screen (`#awayLead`, `#awayDark`, `#awayRate`), toggled by
+`hidden`, never navigated between. The lead-in is the one place in either app where
+`plan.works` is rendered as something to *read* rather than tapped as a chip — everywhere
+else it is laundered through `steerOptions()`. The dark state deliberately has nothing to
+consume: no countdown, no progress bar, one line, and an "I'm back" button that only
+appears if you tap.
+
+Three things that will bite:
+
+- **Elapsed is always `Date.now()` minus `awayStart`, never a count of ticks.** A locked
+  or backgrounded phone throttles timers to a stop; counting ticks would let a five-minute
+  reset be reported off ninety seconds of foreground time. `visibilitychange` recomputes
+  on resume.
+- **The end signal is best-effort.** `navigator.wakeLock` keeps the page alive where the
+  platform allows it; the chime is generated with Web Audio from an `AudioContext` built
+  on the Start tap (iOS grants audio no other way) and `navigator.vibrate` where it
+  exists. None of it is load-bearing — the state change driven by the timestamp is.
+  **Never fetch an audio file for this**; that would be the app's first outbound request.
+- **`intensity` stays the storm's number, not the post-reset one.** The form is pre-filled
+  with `reset.before`, and the number tapped on the way back is stored as `reset.after`.
+  Writing the lower post-reset number into `intensity` would quietly walk every reset back
+  into `stormStats()` as a smaller storm.
+
+A prefilled number is not something the user typed, so `quickSeed`/`entrySeed` hold it and
+the discard prompts compare against those — otherwise backing out of an untouched form
+asks "Discard this?" of someone who wrote nothing.
+
+`awayStat()` reports counts only. It does **not** compare stepping away against staying at
+the desk: there is no at-desk arm, and building one out of the storms where the user chose
+not to step away would compare two different kinds of day and call it evidence.
 
 ## The reminder path
 

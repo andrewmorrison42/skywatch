@@ -344,7 +344,7 @@
       <!-- the permission first, then the logistics — this line is what gets someone
            out of the chair, not the route and not the rule -->
       <p class="anchor-line" id="awayLine" style="margin-top:14px"></p>
-      <button class="btn quiet" id="saySome" hidden onclick="sayTruth()">Read it to me &mdash; then pocket it</button>
+      <button class="btn quiet" id="saySome" hidden onclick="sayWalk()">Read it to me &mdash; then pocket it</button>
       <p class="sub" id="awayRoute" style="margin-top:16px"></p>
       <p class="sub" id="awayRule" style="margin-top:6px"></p>
       <div id="awayWorks"></div>
@@ -594,6 +594,7 @@ Not everything has to be fixed today."></textarea>
   <div class="listwrap">
     <label class="f" for="pWalkLine">What to tell yourself about going<small>Shown on the walk screen, at the moment it's hardest to justify. The version that lands is usually the one you'd say to someone else &mdash; so write that one.</small></label>
     <textarea id="pWalkLine" style="min-height:52px"></textarea>
+    <p class="note" id="voiceNote"></p>
   </div>
 
   <div class="listwrap">
@@ -859,6 +860,10 @@ function planLines(s){
   return String(s||"").split("\n").map(x=>x.trim()).filter(Boolean);
 }
 function renderPlan(){
+  pickVoice();
+  document.getElementById("voiceNote").textContent = canSpeak()
+    ? "This device can read these aloud on the walk screen."
+    : "This device has no built-in voice, so Skywatch can't read these aloud. It only ever uses a voice already on the phone \u2014 it will not send your words to a speech service.";
   document.getElementById("pLine").value     = plan.line;
   document.getElementById("pOpener").value   = plan.opener;
   document.getElementById("pRoute").value    = plan.route;
@@ -1014,6 +1019,7 @@ function latestReading(){
    ask and shields the rest (`plan.noDecide` is already rendered below as "Not today").
    It does not hide the field, and it says nothing about how they are doing. */
 function applySteerGate(){
+  pickVoice();
   const n = latestReading();
   const still = typeof n === "number" && n >= plan.resetAt;
   document.getElementById("quickSteerLabel").innerHTML = still
@@ -1143,7 +1149,9 @@ function say(lines){
   }catch(e){}
 }
 function hush(){ try{ if ("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){} }
-function sayTruth(){ say(plan.truth); }
+/* reads what the screen is showing: the line that gets you out of the chair, then
+   anything written under "When it's a lot". Not an attribution — just the page, aloud. */
+function sayWalk(){ say([plan.walkLine].concat(plan.truth)); }
 function sayLine(){ say(truthLine()); }
 
 /* ---------- five minutes off the desk ---------- */
@@ -1171,7 +1179,8 @@ function startAway(){
     : "Stand up. Go somewhere else. This one comes with you and says when it's up.";
   document.getElementById("awayLine").textContent = plan.walkLine;
   document.getElementById("awayWorks").innerHTML = worksBlock();
-  document.getElementById("saySome").hidden = !(canSpeak() && plan.truth.length);
+  pickVoice();
+  document.getElementById("saySome").hidden = !canSpeak();
   awayState("awayLead");
   show("away");               /* show() clears the stamp, so it is set afterwards */
 }

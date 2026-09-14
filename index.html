@@ -271,6 +271,7 @@
     <nav class="applinks">
       <button onclick="show('plan')">Storm plan</button>
       <button onclick="show('reference')">Patterns</button>
+      <button onclick="show('unhook')">Unhook</button>
       <a href="climate.html" style="color:#B48FD9">Climate →</a>
     </nav>
   </header>
@@ -634,6 +635,22 @@ Not everything has to be fixed today."></textarea>
   <p class="note">Adapted from Carol Vivyan's Unhelpful Thinking Habits (getselfhelp.co.uk), used for personal therapy purposes.</p>
 </section>
 
+<!-- ============ UNHOOK ============ -->
+<!-- The one screen that leaves the device. Everything else here is local; this
+     hands off to a Claude project deliberately, and says so before it does. -->
+<section class="screen" id="unhook">
+  <button class="backlink" onclick="show('home')">← Back</button>
+  <div class="eyebrow">Still in it</div>
+  <h2>Talk it through</h2>
+  <p class="sub">Opens a conversation that runs the unhooking sequence with you. Say the thought out loud there if typing is too much.</p>
+
+  <textarea id="unhookText" style="margin-top:18px" placeholder="The thought, if you want a head start. Optional."></textarea>
+
+  <div style="margin-top:20px"><button class="btn" onclick="openUnhook()">Open it</button></div>
+
+  <p class="note" style="margin-top:22px"><b>This one leaves your device.</b> Anything you type here is copied to your clipboard and the conversation happens in Claude, not in Skywatch. Your reports, your plan and your numbers stay on this device as they always have — none of them are sent.</p>
+</section>
+
 <!-- ============ AFTERGLOW ============ -->
 <section class="screen" id="afterglow">
   <div class="glow-wrap">
@@ -915,6 +932,21 @@ function renderPlanCard(){
     <div class="eyebrow">Storm plan</div>
     ${plan.line ? `<div class="plan-line">${esc(plan.line)}</div>` : ""}
     <div class="sub" style="margin-top:4px">${n ? `${n} move${n===1?"":"s"} that have worked before.` : "No moves listed yet."} Tap to edit.</div></button>`;
+}
+
+/* ---------- unhook handoff ----------
+   The only outbound navigation in the app. ?q= does not prefill on project
+   URLs, so the text goes via the clipboard instead. The write must happen
+   inside the tap handler or Safari refuses it. */
+const UNHOOK_URL = "https://claude.ai/project/01a09fe1-830e-755d-adb9-04040ba4ec94";
+async function openUnhook(){
+  const el = document.getElementById("unhookText");
+  const text = el ? el.value.trim() : "";
+  if (text){
+    try{ await navigator.clipboard.writeText(text); toast("Copied — paste it there"); }
+    catch(e){ toast("Couldn't copy — you'll need to retype it"); }
+  }
+  window.open(UNHOOK_URL, "_blank", "noopener");
 }
 
 /* ---------- nav ---------- */

@@ -36,8 +36,16 @@ Everything you write lives in your browser's local storage. Your reports are
 never uploaded — there's no account, no analytics, no server, and no way for
 anyone else to read them. The code is public; nothing you log ever is.
 
-The app makes no outbound requests at all — no CDN, no third-party fonts, no
+Nothing loads from anywhere else either — no CDN, no third-party fonts, no
 telemetry. Opening it doesn't tell anyone you opened it.
+
+There is one exception, and it only happens if you tap it. **Unhook** on the
+home screen opens a conversation in Claude to talk a thought through, because
+that is the one thing a page holding your own words back at you cannot do. It
+copies whatever you typed on that screen to your clipboard and opens Claude in
+a new tab — that text is the only thing that leaves, it goes nowhere unless you
+paste it, and your reports, plan and numbers are never attached to it. The
+screen says so before you tap.
 
 Two practical consequences:
 

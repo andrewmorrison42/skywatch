@@ -15,7 +15,8 @@ back to them.
 ## The two apps
 
 Both are single self-contained HTML files. No build step, no dependencies, no
-framework, no backend, no network calls.
+framework, no backend. No network calls except one deliberate, user-initiated
+handoff on the `unhook` screen — see The unhook handoff.
 
 | File | Name | Purpose |
 |---|---|---|
@@ -28,7 +29,7 @@ shared code between them — see the duplication warning below.
 **Screens** (each app is a set of `.screen` divs switched by a `show(id)` router):
 
 - `index.html` — `home`, `entry`, `quick`, `followup`, `afterglow`, `breathe`,
-  `away`, `detail`, `plan`, `weathered`, `reference`
+  `away`, `detail`, `plan`, `weathered`, `reference`, `unhook`
 - `climate.html` — `home`, `entry`, `checkin`, `close`, `detail`, `guide`,
   `ledger`, `mantra`, `outcome`
 
@@ -47,7 +48,7 @@ All data is local. Nothing is transmitted anywhere.
 ### Three things that cause silent bugs here
 
 **1. `skywatch-mantra` is the only cross-app key.** `climate.html` writes it;
-`index.html:620` reads it and must never write it. Changing its shape in one app
+`index.html:757` reads it and must never write it. Changing its shape in one app
 breaks the other with no error.
 
 **2. Each app has its own near-duplicate `store` object.** They are separate
@@ -77,7 +78,7 @@ export and re-import; their entries do not follow them.
 
 `index.html` plan — `PLAN_LISTS` is `["truth","signs","works","worse","noDecide","tell"]`,
 plus `opener` and `line` strings. Always read through `normalizePlan()`
-(`index.html:705`), which coerces anything malformed into a valid shape. Reuse
+(`index.html:857`), which coerces anything malformed into a valid shape. Reuse
 that defensive pattern rather than trusting stored JSON.
 
 `climate.html` entry — `{ id, ts, trigger, schemas[], perception, body, pulls[],
@@ -112,7 +113,7 @@ to produce a line the user can read mid-crisis — *your last 6 storms at 7+ all
 passed, median 4 hours.* The stat narrows to the band the user is currently in,
 so an 8 is compared against other 7+ days rather than a diluted lifetime average.
 
-Thresholds at `index.html:857-862`:
+Thresholds at `index.html:1350-1362`:
 
 | Constant | Value | Meaning |
 |---|---|---|
@@ -278,7 +279,7 @@ route:
 So scheduling is handed to the OS:
 
 - **Apple Reminders** via `shortcuts://run-shortcut`, matched by the Shortcut
-  name `Skywatch check-in` (`index.html:969`). There is no public URL scheme that
+  name `Skywatch check-in` (`index.html:1510`). There is no public URL scheme that
   creates a reminder directly. Renaming the Shortcut silently breaks the button.
 - **Calendar `.ics`** underneath — no setup, works anywhere, shared via
   `navigator.share` where files can be shared and downloaded otherwise.
@@ -286,6 +287,58 @@ So scheduling is handed to the OS:
 Apple devices get both; everything else gets the calendar route alone rather than
 a dead button. `remindWhen()` clamps times forward so a days-old entry never
 schedules a reminder in the past.
+
+## The unhook handoff
+
+The `unhook` screen exists because the rest of the app is deliberately mute. It
+reflects the user's own words back and never generates a response, which is
+right for logging and useless at the moment the user is fused and needs
+something to push back. That job needs a live model, and a live model means
+leaving the device.
+
+**It is a navigation, not a fetch.** `openUnhook()` copies the textarea to the
+clipboard and opens a Claude project in a new tab. The page makes no API call,
+holds no API key, and has no backend. This matters: an API key in client JS on
+a public repo is readable by anyone, so a direct integration was never
+available without introducing a proxy — and a proxy would mean a server
+touching the user's words, which is worse than the handoff on every axis.
+
+**The ACT sequence lives in the project's instructions, not here.** The project
+runs NAME → SKY → MOVE, then one — and only one — alternative technique if the
+grip hasn't moved. `UNHOOK-PROJECT.md` documents the generic shape of those
+instructions; it is **not** a copy of the live ones, which are private and
+personal to the user. Do not sync the two, and do not move personal material
+into this repo — it is public. Editing behaviour means editing the project, and
+nothing here will reflect the change. The project id is hard-coded in
+`UNHOOK_URL`; a private project id is not a credential — it grants no access to
+anyone who isn't signed in as its owner — but if the project is deleted the
+button lands on a dead page.
+
+**`?q=` does not prefill on project URLs.** Tested in Safari; the text is
+ignored. Hence the clipboard route. The `writeText` call must stay inside the
+tap handler — Safari rejects a clipboard write that isn't user-gesture-bound —
+so do not move it behind an `await` that resolves later, and do not make the
+navigation conditional on the copy succeeding. A failed copy costs a retype; a
+blocked navigation costs the whole point of the screen.
+
+**No speech recognition on this screen, on purpose.** Voice input was the
+obvious addition and was deliberately left out: Safari's `SpeechRecognition`
+sends audio to a remote service, which is the same objection that makes
+`pickVoice()` filter on `localService`. The Claude app already handles voice
+well, and the user lands there anyway — so the microphone stays on the far side
+of the handoff, where the user has already chosen it, rather than being opened
+by this page.
+
+**The screen states the exception in its own copy.** The note at the bottom
+says plainly that this one leaves the device and that reports do not. Do not
+remove or soften it to tidy the layout. The rest of this file's privacy
+guarantee is only honest if the exception is visible at the point of use, not
+just documented here.
+
+**It carries nothing but what was typed on the screen.** It does not read
+`skywatch-entries`, `skywatch-plan`, or anything else in storage, and must not
+be "improved" by attaching recent entries for context. The user can paste
+whatever they choose; the app does not choose for them.
 
 ## Guardrails
 
@@ -326,10 +379,15 @@ official sources first — a wrong number at the wrong moment is a serious harm.
 supports nothing. Never round a small sample into a confident statement, never
 hide the sample size, and never present a selected subset as the whole picture.
 
-**Data stays on the device.** No analytics, no telemetry, no error reporting, no
-CDN, no third-party anything. The app makes no outbound requests, and that is a
-promise to the user, not an implementation detail. Note that the repo is public,
-so the *code* is visible — but no entry ever leaves the browser.
+**Data stays on the device — with one deliberate, marked exception.** No
+analytics, no telemetry, no error reporting, no CDN, no third-party anything.
+No entry, plan, number or export ever leaves the browser, and that is a promise
+to the user rather than an implementation detail. The single exception is the
+`unhook` screen, which hands off to Claude — see The unhook handoff. It is
+opt-in, per-tap, carries only what the user typed on that screen, and says so
+on screen before it fires. Do not extend it: no other screen may send
+anything, and the handoff must never be given access to stored entries.
+Note that the repo is public, so the *code* is visible — but no report ever is.
 
 Fonts are **self-hosted in `fonts/`** and declared with `@font-face` in each
 app's inline `<style>`. Both apps previously linked Google Fonts, which sent the

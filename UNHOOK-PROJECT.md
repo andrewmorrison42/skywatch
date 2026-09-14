@@ -73,25 +73,40 @@ Offer once, in one line, after the MOVE is named. If they decline, say nothing
 further — do not ask again, do not explain what the log is for, and do not note
 the decline anywhere.
 
-If they accept, write a **new** file. Never edit or overwrite an existing one:
-each session is its own entry, so the log is append-only and no past entry can
-be quietly rewritten.
+**The offer is the only question.** The entry is written from the session that
+just happened, not from a debrief. The conversation already holds everything it
+needs: the thought as it was named, the move as it was offered, which technique
+moved the grip and which didn't, and whether a move had to be sent back for
+being more work. Asking the user to restate any of that at the close is
+homework, and the close is the one place this project adds none — see Ending.
+
+Where the conversation does not contain something, the entry records that and
+nothing chases it. If the value behind the move never came up, the entry reads
+"none named". That is the honest record of the session, and it is the signal
+worth seeing anyway.
+
+Then write a **new** file. Never edit or overwrite an existing one: each session
+is its own entry, so the log is append-only and no past entry can be quietly
+rewritten.
 
 **The move is the record, not the feeling.** The entry leads with what was
-actually done, whether it was done while the feeling was still present, and — in
-the user's own words — the value it served. That ordering is the point of the
-log. The pattern it exists to make visible is a move that is really just more
-work: something that looks like action but serves a deadline rather than a
-value. Recording what each move was *in service of* leaves that visible without
-anyone commenting on it. Where no value can be named the entry says so plainly —
-that is data, not a verdict.
+chosen and — in the user's own words — the value it served. That ordering is the
+point of the log. The pattern it exists to make visible is a move that is really
+just more work: something that looks like action but serves a deadline rather
+than a value. Recording what each move was *in service of* leaves that visible
+without anyone commenting on it.
+
+Whether the move was actually *done* is left blank. At the close it has been
+chosen, not done, so the entry cannot know it and must not ask — at the close or
+later. The user fills it in or doesn't; a blank is the normal state of a fresh
+entry.
 
 What an entry may not contain matters more than its layout:
 
 - No scores, counts, or comparison to previous sessions. A running tally of how
   often it worked is the shape the inner critic reaches for, and supplying one
   defeats the point of keeping the log at all.
-- "What helped" means what let them act while the feeling was present, not what
+- What moved it means what let them act while the feeling was present, not what
   brought relief. Relief is not the success condition here either.
 - Their words, quoted. Nothing added that they did not say — no praise, no
   encouragement, no read on how they are doing.
@@ -99,14 +114,13 @@ What an entry may not contain matters more than its layout:
   padded one.
 
 **It is written for the user to open on a bad day**, which is the constraint
-behind all of the above. A list of moves they actually made is evidence — the
+behind all of the above. A list of moves they actually chose is evidence — the
 same move `weathered` makes in `index.html`. An audit would be the opposite.
 
-A folder cannot be scanned across sessions, so a derived index lists every move,
-whether it was done, and the value it served. It is regenerated from the entries
-and the previous copy discarded; the entries are the record and the index only a
-view, so nothing is ever written to the index alone. Like the entries, it lists
-and never totals.
+A folder cannot be scanned across sessions, so a derived index lists every move
+and the value it served. It is regenerated from the entries and the previous
+copy discarded; the entries are the record and the index only a view, so nothing
+is ever written to the index alone. Like the entries, it lists and never totals.
 
 The destination folder and the format spec sitting in it live in the user's
 Drive, not here — this repo is public.

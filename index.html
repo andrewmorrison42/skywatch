@@ -350,6 +350,8 @@
       <p class="sub" id="awayRule" style="margin-top:6px"></p>
       <div id="awayWorks"></div>
       <div style="margin-top:26px"><button class="btn" onclick="awayGo()">Start</button></div>
+      <div style="margin-top:10px"><button class="btn ghost" onclick="walkAndTalk()">Walk and talk it through</button></div>
+      <p class="note" id="talkNote" style="text-align:center"></p>
       <button class="btn quiet" style="margin-top:4px" onclick="awaySkip()">Write it down instead</button>
     </div>
 
@@ -605,6 +607,15 @@ Not everything has to be fixed today."></textarea>
       <label for="pMinDrop">Or moved less than</label><input type="number" id="pMinDrop" min="0" max="10" inputmode="numeric">
       <label for="pWalkMins">Walk for (minutes)</label><input type="number" id="pWalkMins" min="1" max="60" inputmode="numeric">
     </div>
+  </div>
+
+  <div class="listwrap">
+    <label class="f">Walk and talk<small>The walk screen can open Unhook in Claude while the walk runs.</small></label>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:8px">
+      <input type="checkbox" id="pTalkShare" style="margin-top:4px;width:auto;min-height:0">
+      <span>Copy my readings and the &ldquo;When it's a lot&rdquo; lines for me to paste there</span>
+    </label>
+    <p class="note">Copied to your clipboard only. They leave this device if you paste them into Claude, and not otherwise. Off means Claude knows only what you say.</p>
   </div>
 
   <div style="margin-top:28px">
@@ -864,7 +875,9 @@ function normalizePlan(raw){
                 /* tuning, not a safety floor — unlike the stat floors below, these are yours */
                 resetAt:  num(p.resetAt,  6,  0, 10),
                 minDrop:  num(p.minDrop,  2,  0, 10),
-                walkMins: num(p.walkMins, 5,  1, 60) };
+                walkMins: num(p.walkMins, 5,  1, 60),
+                /* the one plan value that decides what may leave the device — off unless set */
+                talkShare: p.talkShare === true };
   PLAN_LISTS.forEach(k=>{
     out[k] = Array.isArray(p[k]) ? p[k].filter(x=>typeof x === "string" && x.trim()).map(x=>x.trim()) : [];
   });
@@ -888,6 +901,7 @@ function renderPlan(){
   document.getElementById("pResetAt").value  = plan.resetAt;
   document.getElementById("pMinDrop").value  = plan.minDrop;
   document.getElementById("pWalkMins").value = plan.walkMins;
+  document.getElementById("pTalkShare").checked = plan.talkShare;
   PLAN_LISTS.forEach(k=>{
     document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value = plan[k].join("\n");
   });
@@ -910,6 +924,7 @@ async function savePlan(){
   plan.resetAt  = num(parseInt(document.getElementById("pResetAt").value, 10),  6, 0, 10);
   plan.minDrop  = num(parseInt(document.getElementById("pMinDrop").value, 10),  2, 0, 10);
   plan.walkMins = num(parseInt(document.getElementById("pWalkMins").value, 10), 5, 1, 60);
+  plan.talkShare = document.getElementById("pTalkShare").checked;
   PLAN_LISTS.forEach(k=>{
     plan[k] = planLines(document.getElementById("p" + k[0].toUpperCase() + k.slice(1)).value);
   });
@@ -939,14 +954,73 @@ function renderPlanCard(){
    URLs, so the text goes via the clipboard instead. The write must happen
    inside the tap handler or Safari refuses it. */
 const UNHOOK_URL = "https://claude.ai/project/01a09fe1-830e-755d-adb9-04040ba4ec94";
-async function openUnhook(){
-  const el = document.getElementById("unhookText");
-  const text = el ? el.value.trim() : "";
+async function handoff(text){
   if (text){
     try{ await navigator.clipboard.writeText(text); toast("Copied — paste it there"); }
     catch(e){ toast("Couldn't copy — you'll need to retype it"); }
   }
   window.open(UNHOOK_URL, "_blank", "noopener");
+}
+function openUnhook(){
+  const el = document.getElementById("unhookText");
+  return handoff(el ? el.value.trim() : "");
+}
+/* The second door, on the walk screen. Only numbers and plan.truth, and only when the
+   user switched talkShare on — never entry text, and never the friend field. */
+function talkPayload(){
+  const r = pendingReset || {};
+  const bits = [];
+  if (typeof r.pre === "number" && typeof r.post === "number")
+    bits.push(`Came in at ${r.pre}, ${r.post} after the breathing.`);
+  else if (typeof r.post === "number") bits.push(`At ${r.post} after the breathing.`);
+  bits.push("Walking now.");
+  let t = "From Skywatch: " + bits.join(" ");
+  if (plan.truth.length) t += "\nMy own lines, written when it was calm:\n" + plan.truth.join("\n");
+  return t;
+}
+function walkAndTalk(){
+  awayGo();                         /* the stamp first: the walk is still the reset */
+  if (pendingReset) pendingReset.talked = true;
+  saveInflight();                   /* not awaited — the tap's activation has to reach window.open */
+  handoff(plan.talkShare ? talkPayload() : "");
+}
+
+/* ---------- surviving the trip to Claude ----------
+   A conversation keeps Skywatch in the background for minutes, and iOS may evict the
+   page. Without this the walk comes back as the home screen with nothing to rate. The
+   record is one-shot: written at the handoff, cleared the first time the page is seen
+   again, whichever way it comes back. */
+const IKEY = "skywatch-inflight";
+/* a long walk and a slow return, but never yesterday's walk at tomorrow's first open.
+   Spelled out rather than 3*H: H is declared further down, and reading it here would
+   throw at load and take the whole page with it. */
+const INFLIGHT_MS = 3*3600000;
+function saveInflight(){
+  return store.save(IKEY, { v:1, flowMode, preAt, breathAt, awayStart, truthPick, reset: pendingReset });
+}
+function clearInflight(){ return store.save(IKEY, null); }
+async function restoreInflight(){
+  const r = await store.load(IKEY, null);
+  if (!r) return false;
+  await clearInflight();
+  const ok = r && typeof r === "object" && r.v === 1
+    && typeof r.awayStart === "number" && Date.now() - r.awayStart < INFLIGHT_MS && r.awayStart <= Date.now()
+    && r.reset && typeof r.reset === "object";
+  if (!ok) return false;
+  const n = v => typeof v === "number" && v >= 0 && v <= 10 ? v : null;
+  flowMode = r.flowMode === "full" ? "full" : "quick";
+  if (flowMode === "quick") resetQuick(); else resetForm();
+  document.getElementById(flowMode === "quick" ? "quickStamp" : "entryStamp").textContent = fmt(new Date(r.awayStart));
+  preAt = n(r.preAt); breathAt = n(r.breathAt);
+  truthPick = typeof r.truthPick === "number" ? r.truthPick : 0;
+  pendingReset = Object.assign(newReset("away"), { pre:preAt, post:breathAt, talked: r.reset.talked === true });
+  awayState("awayDark");
+  show("away");                     /* show() clears the stamp, so it is set afterwards */
+  document.getElementById("away").classList.add("dark");
+  document.getElementById("awayBackBtn").style.visibility = "hidden";
+  awayStart = r.awayStart;
+  if (awayElapsed() >= walkMs()) awayBack(); else awayTick();
+  return true;
 }
 
 /* ---------- nav ---------- */
@@ -997,6 +1071,7 @@ function startBreathe(mode){
   flowMode = mode === "quick" ? "quick" : "full";
   editingId = null;
   truthPick = Math.floor(Math.random()*1e6);
+  clearInflight();
   preAt = null;
   breathAt = null;
   pendingReset = null;
@@ -1213,6 +1288,9 @@ function startAway(){
   document.getElementById("awayWorks").innerHTML = worksBlock();
   pickVoice();
   document.getElementById("saySome").hidden = !canSpeak();
+  document.getElementById("talkNote").textContent = plan.talkShare
+    ? "Opens Unhook in Claude. Your readings and lines are copied to paste there."
+    : "Opens Unhook in Claude. Nothing from Skywatch goes with it.";
   awayState("awayLead");
   show("away");               /* show() clears the stamp, so it is set afterwards */
 }
@@ -1341,7 +1419,11 @@ function chime(){
 /* the OS drops a wake lock whenever the page hides — retake it and recompute from the
    stamp, so a locked screen can neither fake five minutes nor strand the reset */
 document.addEventListener("visibilitychange", ()=>{
-  if (document.visibilityState !== "visible" || !awayStart) return;
+  if (document.visibilityState !== "visible") return;
+  /* before the stamp check: a walk that finished while hidden has already cleared it,
+     and a record left behind would restore a walk he has since saved */
+  clearInflight();
+  if (!awayStart) return;
   armChime(); holdScreen(); awayTick();
 });
 
@@ -1653,6 +1735,7 @@ async function saveEntry(){
     }, fields);
     /* only ever on a fresh report — a reset belongs to the storm it happened in */
     if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
+    clearInflight();
     entries.unshift(e);
   }
   await store.save(KEY, entries);
@@ -1748,6 +1831,7 @@ async function saveQuick(){
     partial: true,
   };
   if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
+  clearInflight();
   entries.unshift(e);
   await store.save(KEY, entries);
   showAfterglow(e);
@@ -1765,6 +1849,7 @@ async function saveResetOnly(){
     partial: true,
   };
   if (pendingReset){ e.reset = pendingReset; pendingReset = null; }
+  clearInflight();
   entries.unshift(e);
   await store.save(KEY, entries);
   toast("Saved");
@@ -2021,6 +2106,7 @@ function openDetail(id){
   const stepped = r && r.kind === "away" && typeof r.ms === "number"
     ? `<div class="detail-block"><div class="eyebrow">Walked</div>
        <div class="move">${trail.length > 1 ? trail.join(" \u2192 ") + " \u00B7 " : ""}${fmtDur(r.ms)}</div>
+       ${r.talked ? `<div class="sub" style="margin-top:4px">Talked it through</div>` : ""}
        ${r.mind ? `<div class="sub" style="margin-top:4px">Head after: ${esc(r.mind)}</div>` : ""}
        ${r.reason ? `<div class="sub" style="margin-top:4px">Back early: ${esc(r.reason)}</div>` : ""}</div>`
     : (trail.length > 1
@@ -2059,14 +2145,15 @@ function exportCSV(){
   const head = ["timestamp","situation","thoughts","feeling","patterns","facts","in_my_control","to_a_friend",
                 "not_mine","intensity","partial","followup_timestamp","followup_intensity","what_helped","followup_note",
                 "reset_kind","tension_pre","tension_post_breath","tension_post_walk",
-                "reset_minutes","walked","head_after_walk","back_early_reason"];
+                "reset_minutes","walked","head_after_walk","back_early_reason","talked"];
   const rows = entries.map(e=>[
     e.ts, e.situation, e.thoughts, e.feeling, (e.patterns||[]).map(pname).join("; "), e.facts, e.control, e.friend,
     e.notMine, e.intensity, e.partial ? "yes" : "",
     e.followUp?.ts, e.followUp?.intensity, (e.followUp?.helped||[]).join("; "), e.followUp?.note,
     e.reset?.kind, e.reset?.pre, e.reset?.post, e.reset?.after,
     typeof e.reset?.ms === "number" ? Math.round(e.reset.ms/60000) : "",
-    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.mind, e.reset?.reason
+    e.reset ? (e.reset.walked ? "yes" : "") : "", e.reset?.mind, e.reset?.reason,
+    e.reset?.talked ? "yes" : ""
   ].map(csvCell).join(","));
   download("skywatch-entries.csv","text/csv","\uFEFF"+[head.join(","),...rows].join("\r\n"));
 }
@@ -2131,6 +2218,7 @@ function toast(msg){
   renderChips();
   renderReference();
   renderHome();
+  await restoreInflight();
 })();
 </script>
 </body>

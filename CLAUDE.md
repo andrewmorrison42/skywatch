@@ -16,7 +16,8 @@ back to them.
 
 Both are single self-contained HTML files. No build step, no dependencies, no
 framework, no backend. No network calls except one deliberate, user-initiated
-handoff on the `unhook` screen — see The unhook handoff.
+handoff to Claude, reachable from the `unhook` screen and from the walk screen —
+see The unhook handoff.
 
 | File | Name | Purpose |
 |---|---|---|
@@ -44,6 +45,7 @@ All data is local. Nothing is transmitted anywhere.
 | `skywatch-climate` | `climate.html` | `climate.html` |
 | `skywatch-beliefs` | `climate.html` | `climate.html` |
 | `skywatch-mantra` | `climate.html` | **both** |
+| `skywatch-inflight` | `index.html` | `index.html` — one-shot, see The unhook handoff |
 
 ### Three things that cause silent bugs here
 
@@ -73,7 +75,8 @@ export and re-import; their entries do not follow them.
   partial?, updated?,                       // partial: saved via the quick path
   followUp?: { ts, intensity, helped[], note },
   reset?: { kind, pre, post, after, mind,   // kind: "away" | "desk" — see The reset path
-            ms, walked, override, reason } }
+            ms, walked, override, reason,
+            talked? } }                     // set only on a walk-and-talk walk
 ```
 
 `index.html` plan — `PLAN_LISTS` is `["truth","signs","works","worse","noDecide","tell"]`,
@@ -296,7 +299,13 @@ right for logging and useless at the moment the user is fused and needs
 something to push back. That job needs a live model, and a live model means
 leaving the device.
 
-**It is a navigation, not a fetch.** `openUnhook()` copies the textarea to the
+**One handoff, two doors.** `handoff(text)` copies `text` to the clipboard (if
+there is any) and opens the Claude project in a new tab. Two things call it:
+`openUnhook()` on the `unhook` screen, and `walkAndTalk()` on the walk screen. Keep it
+to the one function — the clipboard-then-`window.open` shape below was tested in
+Safari, and two copies of it would drift.
+
+**It is a navigation, not a fetch.** `handoff()` copies to the
 clipboard and opens a Claude project in a new tab. The page makes no API call,
 holds no API key, and has no backend. This matters: an API key in client JS on
 a public repo is readable by anyone, so a direct integration was never
@@ -335,10 +344,50 @@ remove or soften it to tidy the layout. The rest of this file's privacy
 guarantee is only honest if the exception is visible at the point of use, not
 just documented here.
 
-**It carries nothing but what was typed on the screen.** It does not read
-`skywatch-entries`, `skywatch-plan`, or anything else in storage, and must not
-be "improved" by attaching recent entries for context. The user can paste
-whatever they choose; the app does not choose for them.
+**What each door carries, exactly.**
+
+- The `unhook` screen carries only what was typed into its textarea. Nothing from
+  storage, whatever the settings say.
+- The walk screen's **Walk and talk** carries nothing by default. Only when the user
+  has ticked `plan.talkShare` on the plan screen does `talkPayload()` copy the
+  readings for this storm (`pre`, `post`) and the `plan.truth` lines. Never entry
+  text, never `friend`, never any other plan list. The user asked for exactly this
+  set, knowingly; it is not a precedent for attaching more.
+- In both cases it goes to the **clipboard**, not to Claude. It leaves the device
+  only if the user pastes it. (On Apple devices, Universal Clipboard can sync it to
+  the user's own other devices.) The note under each button says what that tap will
+  copy, before the tap.
+- `talkShare` is **off unless the stored value is literally `true`** — a malformed
+  plan never turns it on.
+
+**Walk and talk is the walk, with a conversation on it.** `walkAndTalk()` calls
+`awayGo()` first, so the stamp, the dark screen and the elapsed-time honesty are
+exactly the plain walk's. It marks `pendingReset.talked`, which shows in the detail
+view and the CSV. `resetStat()` deliberately does **not** split on `talked`: the user
+chooses which walks to talk on, so the two groups would be the selection-not-evidence
+comparison the stat guardrails forbid.
+
+**`skywatch-inflight` exists because the conversation backgrounds the page.** iOS may
+evict a backgrounded tab during a long call, and without a record the walk comes back
+as the home screen with nothing to rate. The record is one-shot:
+
+- written by `walkAndTalk()` just before the handoff — **not awaited**, so the tap's
+  user activation still reaches `window.open` (in `local` mode the write is
+  synchronous anyway);
+- cleared by the `visibilitychange` handler the first time the page is visible
+  again — **before** its `awayStart` check, because a walk that finished while hidden
+  has already nulled the stamp, and a record left behind would later restore a walk
+  that has since been saved;
+- also cleared on every save that consumes `pendingReset`, and when a new flow starts;
+- consumed by `restoreInflight()` at init after an eviction, which rebuilds the flow,
+  and goes straight to the return beat without a chime if the walk is already over
+  (the user is looking at the page; buzzing it is wrong, and it has no gesture);
+- ignored and cleared when older than `INFLIGHT_MS` (3 hours), from the future, or
+  malformed in any way.
+
+`INFLIGHT_MS` is spelled `3*3600000`, not `3*H`, because it sits above `const H` in the
+file and reading `H` there throws at load (TDZ), which takes the whole page with it.
+`node --check` does not catch that; only loading the page does.
 
 ## Guardrails
 
@@ -381,12 +430,13 @@ hide the sample size, and never present a selected subset as the whole picture.
 
 **Data stays on the device — with one deliberate, marked exception.** No
 analytics, no telemetry, no error reporting, no CDN, no third-party anything.
-No entry, plan, number or export ever leaves the browser, and that is a promise
-to the user rather than an implementation detail. The single exception is the
-`unhook` screen, which hands off to Claude — see The unhook handoff. It is
-opt-in, per-tap, carries only what the user typed on that screen, and says so
-on screen before it fires. Do not extend it: no other screen may send
-anything, and the handoff must never be given access to stored entries.
+No entry, report or export ever leaves the browser, and that is a promise to the
+user rather than an implementation detail. The single exception is the handoff to
+Claude — see The unhook handoff. It has exactly two doors, the `unhook` screen and
+Walk and talk; it is per-tap; it only ever reaches the clipboard; and each door says
+what it copies before it fires. The walk door may carry the storm's readings and
+`plan.truth`, and only with `plan.talkShare` switched on. Do not extend it further:
+no third door, nothing else from storage, and never entry text.
 Note that the repo is public, so the *code* is visible — but no report ever is.
 
 Fonts are **self-hosted in `fonts/`** and declared with `@font-face` in each
